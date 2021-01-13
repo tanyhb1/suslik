@@ -1,0 +1,6 @@
+should be able to morph a linked list
+###
+
+{true; r :-> x **  lsegs(x, y, S) ** y :-> a }
+  void lastElement(loc x, loc y)
+{true ; r :-> y ** lsegs(x, y, S) ** y :-> a}

@@ -23,9 +23,12 @@ import scala.collection.mutable
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
+// Current goal: given a set of complete input-output examples of linked lists, each of which has as output the last element of the linked list,
+// the synthesizer should be able to synthesize a program that returns the last element of the linked list.
 class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: ProofTrace) extends SepLogicUtils {
   import log.out.testPrintln
-  def synthesizeProc(funGoal: FunSpec, env: Environment, sketch: Statement, hints: (List[(Var, Int)], List[(Var, Int)])): (List[Procedure], SynStats,  Option[mutable.Map[MemoGoal, GoalStatus]] ) = {
+  def synthesizeProc(funGoal: FunSpec, env: Environment, sketch: Statement, hints: (List[(Var, Int)], List[(Var, Int)])):
+  (List[Procedure], SynStats,  Option[mutable.Map[MemoGoal, GoalStatus]] ) = {
     implicit val config: SynConfig = env.config
     implicit val stats: SynStats = env.stats
 
@@ -41,7 +44,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
       log.print(List((s"CVC4 is not available! All pure synthesis steps will be performed by enumeration (this takes more steps).\n", Console.RED)))
     }
     //handle pre hints
-    if (config.hints) {
+    if (config.hints && !config.examples) {
       val preHints = hints._1
       val postHints = hints._2
       log.print((List((s"Helasdfdsaflo\n", Console.RED))))
@@ -61,6 +64,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
                   val newHeaplet = PointsTo(loc, offset, IntConst(hintValue))
                   ls = newHeaplet:: ls
                 }
+              case _ => ()
             }
           }
         }
@@ -168,6 +172,8 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
 
   // Given a worklist, return the next node to work on
   // and a strategy for combining its children with the rest of the list
+  // DLL to SLL and specify that we want the set of nodes via examples instead
+  // getting last element of a linked list is hard (use examples? to specify instead
   protected def selectNode(implicit config: SynConfig): (OrNode, Worklist => Worklist) =
     if (config.depthFirst) // DFS? Pick the first one, insert new nodes in the front
       (worklist.head, _ ++ worklist.tail)

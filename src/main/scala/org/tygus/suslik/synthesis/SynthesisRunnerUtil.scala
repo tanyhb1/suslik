@@ -50,6 +50,9 @@ trait SynthesisRunnerUtil {
     LanguageUtils.resetFreshNameGenerator()
   }
 
+  def doRunWithExamples(testname: String, desc: String, in: String, out: String,params: SynConfig = defaultConfig) = {
+    LanguageUtils.resetFreshNameGenerator()
+  }
   def getDescInputOutput(testFilePath: String, initialParams: SynConfig = defaultConfig): (String, String, String, String, SynConfig) = {
     val file = new File(testFilePath)
     val format = testFilePath match {
@@ -151,13 +154,13 @@ trait SynthesisRunnerUtil {
     }
 
     val spec = specs.head
-    testPrintln(s"Fun Spec Pre: ${spec.pre}")
-    testPrintln(s"Fun Spec Post: ${spec.post}")
-    testPrintln(spec.params.toString())
-    testPrintln(spec.rType.toString())
-    testPrintln(spec.var_decl.toString())
-    testPrintln(predEnv.toString())
-    testPrintln(funcEnv.toString())
+//    testPrintln(s"Fun Spec Pre: ${spec.pre}")
+//    testPrintln(s"Fun Spec Post: ${spec.post}")
+//    testPrintln(spec.params.toString())
+//    testPrintln(spec.rType.toString())
+//    testPrintln(spec.var_decl.toString())
+//    testPrintln(predEnv.toString())
+//    testPrintln(funcEnv.toString())
     val env = Environment(predEnv, funcEnv, params, new SynStats(params.timeOut))
     val synthesizer = createSynthesizer(env)
 
@@ -354,6 +357,37 @@ trait SynthesisRunnerUtil {
           val (testName, desc, in, out, allParams) = getDescInputOutput(f.getAbsolutePath, params)
           val fullInput = List(defs, in).mkString("\n")
           doRunWithHints(testName, desc, fullInput, out, allParams)
+        case None =>
+          System.err.println(s"No file with the name $fname found in the directory $dir.")
+      }
+    }
+  }
+
+  def runSingleTestFromDirWithExamples(dir: String, fname: String, params: SynConfig = defaultConfig) {
+    var testDir = new File(dir)
+    if (!testDir.exists()) {
+      val path = List(rootDir, dir).mkString(File.separator)
+      println(s"Trying the path $path")
+      testDir = new File(path)
+      if (!testDir.exists()) {
+        System.err.println(s"Found no directory $dir.")
+        return
+      }
+    }
+    if (testDir.exists() && testDir.isDirectory) {
+      // Maybe create log file (depending on params)
+      SynStatUtil.init(params)
+      // Get definitions
+      val defs = getDefs(testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$defExtension")).toList)
+      // Get specs
+      val tests = testDir.listFiles.filter(f => f.isFile
+        && (f.getName.endsWith(s".$testExtension") ||
+        f.getName.endsWith(s".$sketchExtension"))).toList
+      tests.find(f => f.getName == fname) match {
+        case Some(f) =>
+          val (testName, desc, in, out, allParams) = getDescInputOutput(f.getAbsolutePath, params)
+          val fullInput = List(defs, in).mkString("\n")
+          doRunWithExamples(testName, desc, fullInput, out, allParams)
         case None =>
           System.err.println(s"No file with the name $fname found in the directory $dir.")
       }

@@ -30,7 +30,9 @@ case class SynConfig(
                       depthFirst: Boolean = false,
                       breadthFirst: Boolean = false,
                       //  hints
-                      hints: Boolean = true,
+                      hints: Boolean = false,
+                      // examples
+                      examples: Boolean = true,
                       memoization: Boolean = true,
                       termination: TerminationMetric = lexicographic,
                       delegatePure: Boolean = true,

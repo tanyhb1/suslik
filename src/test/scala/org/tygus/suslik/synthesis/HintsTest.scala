@@ -24,7 +24,22 @@ class HintsTest extends FunSpec with Matchers with SynthesisRunnerUtil {
       synthesizeFromSpec(testName, in, out, params, hints)
     }
   }
-
+  override def doRunWithExamples(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit = {
+    val hints = (List((Var("x"), 10), (Var("y"), 20)), List((Var("x"), 20), (Var("y"), 20)))
+    // predicate lseg(x,y,S) describes a linked list that starts at location x, ends at location y, and contains a set of elements S.
+    // Represented abstractly as SApp(Ident "lseg", List(_startloc_, _endloc_, _set_), _tag_, _name_)
+    val example1 = (List(1,2,3,4), 4)
+    val example2 = (List(4,6,1,2,10,5), 5)
+    val example3 = (List(10,9,8,7,6,5,4,3), 3)
+    val examples = List(example1, example2, example3)
+    super.doRun(testName, desc, in, out, params)
+    it(desc) {
+      synthesizeFromSpec(testName, in, out, params, hints)
+    }
+  }
+  describe("Last element of Linked Lists with complete input-output examples"){
+    runSingleTestFromDir("hints", "lastelement.syn")
+  }
   describe("SL-based synthesizer without hints") {
     runSingleTestFromDir("hints", "write2.syn")
   }
