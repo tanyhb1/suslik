@@ -31,24 +31,35 @@ class HintsTest extends FunSpec with Matchers with SynthesisRunnerUtil {
     // To keep track of the evolution of variable values during the syn-
     //thesis process, we tie to each ex an execution environment σ which
     //maps variables to values.
-//    The goal of the synthesis proce-
-//      dure is to derive a program that satisfies each example world given
+//    The goal of the synthesis procedure is to derive a program that satisfies each example world given
 //      in X .
     //x is starting memory address, y is ending memory address, and y -> 3
     // example takes the form of (sigma, input, output) where sigma is execution environment that maps variables to values, input and output are examples.
     val example = (Map("x" -> 0, "y" -> 10), ("x", "y", (1,2,3,4)), 3)
 
-    // Min-cost based approach
+    // Min-cost based approach (also prevents over-fitting)
     // The synthesis problem Let an input-output example be a term
     //a i 7→ b i , where a i and b i are closed programs. The input to
     //our synthesis problem is a set E in of such examples. Our goal
     //is to compute a minimal-cost closed program e that satisfies the
     //examples — i.e., for each i, we have (e a i )
-    //b i . In what follows,
-    //we refer to e as the target program.
+    //b i .
 
-    // Hypothesis (programs with free variables as placeholders) approach ???
+    /** Hypothesis (programs with free variables as placeholders) approach
+      * 1. Extension would be to synthesize an incomplete program using SuSLiK, and then use examples like in pldi15 to fill in the holes.
+      * Or better, 2. Use input-output examples to inductively generalize into a set of open hypotheses about the program that have to be solved by the synthesizer
+      * To solve open hypotheses, the holes must be substituted with concrete values/statements/programs, guided by deductive synthesis
+      * Q <- {(f, f, e)}, Q priority queue of (hypothesis, hole in hypothesis, set of examples). We can generate incomplete program from spec and pass it to Q as
+      * Q <- {(incomplete program, hole in incomplete program, our set of examples)}?
+      */
 
+
+    // ??? Use of Hole in proof sketch?
+    // a hypothesis is  either a concrete program or a "skeleton" that contains placeholders
+
+    //(1) type-aware inductive generalization, (2) the use
+    //of deduction to guide the solution of subproblems; and (3) best-first
+    //enumerative search.
 
     // another way to express this? which to use?
     val example1 = (List(1,2,4,3), 4)
