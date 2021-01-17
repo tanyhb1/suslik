@@ -47,7 +47,6 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     if (config.hints && !config.examples) {
       val preHints = hints._1
       val postHints = hints._2
-      log.print((List((s"Helasdfdsaflo\n", Console.RED))))
       testPrintln("HINTS ENABLED")
       testPrintln(pre.sigma.chunks.toString())
       testPrintln(FunSpec.toString())
@@ -122,6 +121,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     if (worklist.isEmpty) (None, mutable.Map.empty) // No more goals to try: synthesis failed
     else {
       val (node, addNewNodes) = selectNode // Select next node to expand based on DFS/BFS/Min-cost
+      // default = min-cost. combining strategy: add new node where the curr min-cost node was.
       val goal = node.goal
       implicit val ctx: log.Context = log.Context(goal)
       stats.addExpandedGoal(node)
@@ -157,7 +157,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         case None => expandNode(node, addNewNodes) // First time we see this goal: do expand
       }
       res match {
-        case None => processWorkList
+        case None => processWorkList //solveSubGoals
         case sol => {
 //          testPrintln(s"Success leaves: ${successLeaves.toString()} ")
 //          for (on <- successLeaves){
@@ -200,6 +200,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     // each of which can have multiple open subgoals
     // rules are any phased rules since our sketch is a Hole and we set phased config to true.
     val rules = tactic.nextRules(node)
+    //applyRules enumerates all possible sub-derivations obtained by applying the list of rules to our current node.
     val allExpansions = applyRules(rules)(node, stats, config, ctx)
     // no filtering is done for Phased strategy
     val expansions = tactic.filterExpansions(allExpansions)
@@ -210,6 +211,10 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           // [Certify]: Add a terminal node and its ancestors to the certification tree
           CertTree.addSuccessfulPath(node, e)
         }
+        // if an expansion is a terminal, then we add that expansion to successLeaves,
+        // update our worklist, and set it to node.succeed, which further prunes the worklist
+        // and checks if our expansion begins from the root. If so, then it is the solution to the goal, and we return it.
+        // otherwise, it is simply a solution to a subgoal, so we continue this process, taking care to memoize.
         trace.add(e, node)
         successLeaves = node :: successLeaves
         worklist = addNewNodes(Nil)
@@ -253,7 +258,13 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     }
   }
 
-
+  /**
+    * Result of a rule application:
+    * sub-goals to be solved and
+    * a statement producer that assembles the sub-goal results
+    */
+  // producer = continuation that builds a solution to the synthesis problem from its constituent subproblems
+  // enumerates all sub-derivations from applying all possible rules to a sub-goal
   protected def applyRules(rules: List[SynthesisRule])(implicit node: OrNode,
                                                        stats: SynStats,
                                                        config: SynConfig,
@@ -262,7 +273,9 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     rules match {
       case Nil => Vector() // No more rules to apply: done expanding the goal
       case r :: rs =>
-        // Invoke the rule
+        // Invoke the rule (application of the rule occurs here)
+        // successful result = one or more alternative sub-derivations
+        // sub-derivations are just a pair (x,y) where x are zero or more sub-goals to be solved and y is the continuation to form the solution
         val children = stats.recordRuleApplication(r.toString, r(goal))
 
         if (children.isEmpty) {
@@ -270,13 +283,13 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           log.print(List((s"$r FAIL", RESET)), isFail = true)
           applyRules(rs)
         } else {
-          // Rule applicable: try all possible sub-derivations
+          // Rule applicable: try all possible sub-derivation
           val childFootprints = children.map(log.showChildren(goal))
           log.print(List((s"$r (${children.size}): ${childFootprints.head}", RESET)))
           for {c <- childFootprints.tail}
             log.print(List((s" <|>  $c", CYAN)))
 
-          if (r.isInstanceOf[InvertibleRule]) {
+          if (r.isInstanceOf[InvertibleRule]) { // optimization
             // The rule is invertible: do not try other rules on this goal
             children
           } else {

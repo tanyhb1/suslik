@@ -12,6 +12,7 @@ object Rules {
     * sub-goals to be solved and
     * a statement producer that assembles the sub-goal results
     */
+  // producer = continuation that builds a solution to the synthesis problem from its constituent subproblems
   case class RuleResult(subgoals: Seq[Goal],
                         producer: StmtProducer,
                         rule: SynthesisRule,
