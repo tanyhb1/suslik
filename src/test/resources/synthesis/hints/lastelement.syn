@@ -1,6 +1,6 @@
 should be able to retrieve last element with help of complete examples
 ###
 
-{true; r :-> x **  lsegs(x, y, S) ** y :-> a }
-  void lastElement(loc x, loc y)
-{true ; r :-> y ** lsegs(x, y, S) ** y :-> a}
+{true; ret :-> x ** lsegs(x, y, s) ** [y,1] ** y:-> 0}
+  void lastelement(loc ret, loc y)
+{true ; ret :-> z ** lsegs(z, 0, s) }

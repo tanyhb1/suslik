@@ -1,0 +1,13 @@
+should be able to retrieve last element with help of complete examples
+the first element of a SLL
+{r -> x sll(x)}
+{r -> z sll(y)}
+concretely,
+{r -> 5 * [5 -> 3 *...] }
+returns
+{r -> 3 * [5 -> 3 *...] }
+###
+
+{true; ret :-> x ** [x, 1] ** x :-> h ** lsegs(h, y, s)}
+  void fstElement(loc ret, loc y)
+{true ; ret :-> h ** lsegs(h, y, s) }

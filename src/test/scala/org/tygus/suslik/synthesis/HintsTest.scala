@@ -65,6 +65,7 @@ class HintsTest extends FunSpec with Matchers with SynthesisRunnerUtil {
     val example1 = (List(1,2,4,3), 4)
     val example2 = (List(4,6,1,2,10,5), 5)
     val example3 = (List(10,9,8,7,6,5,4,3), 3)
+    val fst_example1 = (Map("x" -> 0, "y" -> 10), ("x", "y", (1,2,3,4)), 3)
     val examples = List(example1, example2, example3)
     super.doRun(testName, desc, in, out, params)
     it(desc) {
@@ -73,6 +74,9 @@ class HintsTest extends FunSpec with Matchers with SynthesisRunnerUtil {
   }
   describe("Last element of Linked Lists with complete input-output examples"){
     runSingleTestFromDir("hints", "lastelement.syn")
+  }
+  describe("First element of Linked Lists with complete input-output examples"){
+    runSingleTestFromDir("hints", "fstelement.syn")
   }
   describe("SL-based synthesizer without hints") {
     runSingleTestFromDir("hints", "write2.syn")
