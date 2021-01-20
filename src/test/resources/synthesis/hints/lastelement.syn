@@ -1,6 +1,24 @@
 should be able to retrieve last element with help of complete examples
 ###
 
-{true; ret :-> x ** lsegs(x, y, s) ** [y,1] ** y:-> 0}
-  void lastelement(loc ret, loc y)
+{true; ret :-> x ** lsegs(x, tl, s) ** [tl,1] ** tl:-> 0}
+  void lstElement(loc ret, loc tl)
 {true ; ret :-> z ** lsegs(z, 0, s) }
+
+###
+// ret is pointer to hd of SLL
+// tl is last node of SLL
+void lstElement (loc ret, loc tl) {
+  let x = *ret;
+  if (x == tl) { // traverse until reach the end
+    free(tl);
+    *ret = 0;    // at the end, set to concrete value pointed to by tl as placeholder
+  } else {
+    let n = *x;
+    *ret = n;
+    lstElement(ret, tl);  // recursively traverse. at x == tl, *ret = 0.
+    let z = *ret;         // once we reach the end, have to "backtrack" to recursively pass value to ret variable
+    *x = z;               //
+    *ret = x;
+  }
+}

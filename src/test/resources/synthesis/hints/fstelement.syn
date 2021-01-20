@@ -8,6 +8,15 @@ returns
 {r -> 3 * [5 -> 3 *...] }
 #######
 
-{true; ret :-> x ** [x, 1] ** x :-> h ** lsegs(h, y, s)}
+{true; ret :-> hd ** [hd, 1] ** hd :-> x ** lsegs(x, y, s)}
   void fstElement(loc ret, loc y)
-{true ; ret :-> h ** lsegs(h, y, s) }
+{true ; ret :-> z ** lsegs(z, y, s) }
+
+######
+// ret points to the head of the SLL, hd points to the second element of the SLL (represented as lsegs)
+void fstElement (loc ret, loc y) {
+  let x = *ret; //  store value of hd at x
+  let h = *x; // store value pointed to by hd
+  free(x); // free hd
+  *ret = h; // return value pointed to by hd (which is second element)
+}
