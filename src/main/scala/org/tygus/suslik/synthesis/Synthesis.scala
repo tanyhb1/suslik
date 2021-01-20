@@ -32,8 +32,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     implicit val config: SynConfig = env.config
     implicit val stats: SynStats = env.stats
 
-    var FunSpec(name, tp, formals, preG, post, var_decl) = funGoal
-    var pre = preG
+    var FunSpec(name, tp, formals, pre, post, var_decl) = funGoal
     if (!CyclicProofChecker.isConfigured()) {
       log.print(List((s"Cyclic proof checker is not configured! All termination check will be considered TRUE (this not sound).\n", Console.RED)))
     } else {
@@ -42,37 +41,6 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
 
     if (config.delegatePure && !DelegatePureSynthesis.isConfigured()) {
       log.print(List((s"CVC4 is not available! All pure synthesis steps will be performed by enumeration (this takes more steps).\n", Console.RED)))
-    }
-    //handle pre hints
-    if (config.hints && !config.examples) {
-      val preHints = hints._1
-      val postHints = hints._2
-      testPrintln("HINTS ENABLED")
-      testPrintln(pre.sigma.chunks.toString())
-      testPrintln(FunSpec.toString())
-      if (preHints.nonEmpty){
-        var ls = List[Heaplet]()
-        for (hint <- preHints){
-          val hintName = hint._1
-          val hintValue = hint._2
-          for (heaplet <- pre.sigma.chunks){
-            heaplet match {
-                // not finished obviously
-              case PointsTo(loc, offset,value) =>
-                if (hintName == loc) {
-                  val newHeaplet = PointsTo(loc, offset, IntConst(hintValue))
-                  ls = newHeaplet:: ls
-                }
-              case _ => ()
-            }
-          }
-        }
-        testPrintln("new spatial stuff")
-        testPrintln(ls.toString())
-        val newPre = Assertion(pre.phi, SFormula(ls))
-        pre = newPre
-        testPrintln(pre.sigma.chunks.toString())
-      }
     }
     val goal = topLevelGoal(pre, post, formals, name, env, sketch, var_decl)
     log.print(List(("Initial specification:", Console.RESET), (s"${goal.pp}\n", Console.BLUE)))

@@ -154,18 +154,10 @@ trait SynthesisRunnerUtil {
     }
 
     val spec = specs.head
-//    testPrintln(s"Fun Spec Pre: ${spec.pre}")
-//    testPrintln(s"Fun Spec Post: ${spec.post}")
-//    testPrintln(spec.params.toString())
-//    testPrintln(spec.rType.toString())
-//    testPrintln(spec.var_decl.toString())
-//    testPrintln(predEnv.toString())
-//    testPrintln(funcEnv.toString())
     val env = Environment(predEnv, funcEnv, params, new SynStats(params.timeOut))
     val synthesizer = createSynthesizer(env)
 
     env.stats.start()
-    testPrintln(s"PRE HINTS: $preHints, POST HINTS: $postHints")
     val sresult = synthesizer.synthesizeProc(spec, env, body, hints)
     val duration = env.stats.duration
 

@@ -72,23 +72,18 @@ class HintsTest extends FunSpec with Matchers with SynthesisRunnerUtil {
       synthesizeFromSpec(testName, in, out, params, hints)
     }
   }
-  describe("Last element of Linked Lists with complete input-output examples"){
+  describe("Last element of Linked Lists without complete input-output examples"){
     runSingleTestFromDir("hints", "lastelement.syn")
   }
-  describe("First element of Linked Lists with complete input-output examples"){
+  describe("First element of Linked Lists without complete input-output examples"){
     runSingleTestFromDir("hints", "fstelement.syn")
   }
-  describe("First element of Linked Lists with complete input-output examples"){
-    runSingleTestFromDir("hints", "fstelement2.syn")
-  }
-  describe("First element of Linked Lists with complete input-output examples"){
+  describe("Last element of Linked Lists parameterized by sets without complete input-output examples"){
     runSingleTestFromDir("hints", "lastelement2.syn")
   }
-  describe("SL-based synthesizer without hints") {
-    runSingleTestFromDir("hints", "write2.syn")
+  describe("First element of Linked Lists parameterized by sets without complete input-output examples"){
+    runSingleTestFromDir("hints", "fstelement2.syn")
   }
-  describe("With Hints"){
-    runSingleTestFromDirWithHints("hints", "write2.syn")
-  }
+
 
 }
