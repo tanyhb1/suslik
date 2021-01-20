@@ -81,9 +81,6 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
       throw SynTimeOutException(s"\n\nThe derivation took too long: more than ${config.timeOut} seconds.\n")
     }
     val sz = worklist.length
-    log.print(List((s"Worklist ($sz): ${worklist.map(n => s"${n.pp()}[${n.cost}]").mkString(" ")}", Console.YELLOW)))
-    log.print(List((s"Succeeded leaves (${successLeaves.length}): ${successLeaves.map(n => s"${n.pp()}").mkString(" ")}", Console.YELLOW)))
-    log.print(List((s"Memo (${memo.size}) Suspended (${memo.suspendedSize})", Console.YELLOW)))
     stats.updateMaxWLSize(sz)
 
     if (worklist.isEmpty) (None, mutable.Map.empty) // No more goals to try: synthesis failed
@@ -93,17 +90,11 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
       val goal = node.goal
       implicit val ctx: log.Context = log.Context(goal)
       stats.addExpandedGoal(node)
-      log.print(List((s"Expand: ${node.pp()}[${node.cost}]", Console.YELLOW))) //      <goal: ${node.goal.label.pp}>
-      if (config.printEnv) {
-        log.print(List((s"${goal.env.pp}", Console.MAGENTA)))
-      }
-      log.print(List((s"${goal.pp}", Console.BLUE)))
       trace.add(node)
 
       // Lookup the node in the memo
       val res = memo.lookup(goal) match {
         case Some(Failed) => { // Same goal has failed before: record as failed
-          log.print(List((s"Recalled FAIL", RED)))
           trace.add(node.id, Failed, Some("cache"))
           worklist = addNewNodes(Nil)
           node.fail
@@ -127,11 +118,6 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
       res match {
         case None => processWorkList //solveSubGoals
         case sol => {
-//          testPrintln(s"Success leaves: ${successLeaves.toString()} ")
-//          for (on <- successLeaves){
-//            testPrintln("SDFSADF")
-//            testPrintln(on.pp())
-//          }
           (sol, memo.returnCache)
         }
       }
@@ -173,7 +159,8 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     // no filtering is done for Phased strategy
     val expansions = tactic.filterExpansions(allExpansions)
     // Check if any of the expansions is a terminal
-    expansions.find(_.subgoals.isEmpty) match {
+    // returns the first instance where predicate is satisfied for res
+    expansions.find(res => res.subgoals.isEmpty) match {
       case Some(e) =>
         if (config.certTarget != null) {
           // [Certify]: Add a terminal node and its ancestors to the certification tree
@@ -201,6 +188,9 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           val extraCost = if (j == -1) 0 else e.subgoals.drop(j + 1).map(_.cost).sum
           OrNode(j +: andNode.id, g, Some(andNode), node.extraCost + extraCost)
         }
+        /**
+         Either perform the example-driven pruning here, or below
+        */
 
         // Suspend nodes with older and-siblings
         newNodes.foreach(n => {
@@ -257,6 +247,9 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           for {c <- childFootprints.tail}
             log.print(List((s" <|>  $c", CYAN)))
 
+          /**
+            *  Or perform the example-driven pruning here.
+            * */
           if (r.isInstanceOf[InvertibleRule]) { // optimization
             // The rule is invertible: do not try other rules on this goal
             children

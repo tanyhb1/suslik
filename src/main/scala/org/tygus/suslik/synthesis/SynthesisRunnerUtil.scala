@@ -135,8 +135,6 @@ trait SynthesisRunnerUtil {
   def synthesizeFromSpec(testName: String, text: String, out: String = noOutputCheck, params: SynConfig = defaultConfig, hints : (List[(Var, Int)], List[(Var, Int)]) = (List(), List()))
   {
     import log.out.testPrintln
-    val preHints = hints._1
-    val postHints = hints._2
     val parser = new SSLParser
     val res = params.inputFormat match {
       case `dotSyn` => parser.parseGoalSYN(text)
