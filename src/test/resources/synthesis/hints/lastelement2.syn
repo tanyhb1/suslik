@@ -1,9 +1,13 @@
-should be able to retrieve last element with help of complete examples
+should be able to retrieve last element with help of complete examples, parameterized by set
+{S1 =i {v} ++ S; ret :-> x ** lseg(x, nxt, S) ** [nxt,2] ** nxt :-> v ** (nxt+1):-> tl }
+  void lstElement(loc ret, loc nxt)
+{true ; ret :-> v ** lseg(tl,tl, {}) }
+
 ###
 
-{true; ret :-> x ** lsegs(x, tl, s) ** [tl,1] ** tl:-> 0}
-  void lstElement(loc ret, loc tl)
-{true ; ret :-> z ** lsegs(tl, 0, s) }
+{S1 =i {v} ++ S; ret :-> x ** lseg(x, nxt, S) ** [nxt,2] ** nxt :-> v ** (nxt+1):-> tl }
+  void lstElement(loc ret, loc nxt)
+{true ; ret :-> v ** lseg(tl,tl, {}) }
 
 ###
 // ret is pointer to hd of SLL

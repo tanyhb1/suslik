@@ -6,11 +6,11 @@ Serves as an example of a problem with closing.
 
 #####
 
-{S =i {v} ++ S1 ; r :-> t3 ** lseg(t3, 0, S1) }
+{true ; r :-> t3 ** lseg(t3, 0, S) }
 
 void list_copy(loc r, int v, loc t3)
 
-{true; r :-> y ** lseg(y, 0, S)}
+{S =i {v} ++ S1; r :-> v ** lseg(y, 0, S1)}
 
 #####
 

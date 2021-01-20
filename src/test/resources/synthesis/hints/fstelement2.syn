@@ -1,4 +1,4 @@
-should be able to retrieve first element with help of complete examples
+should be able to retrieve first element with help of complete examples, parameterized by set
 the first element of a SLL
 {r -> x sll(x)}
 {r -> z sll(y)}
@@ -6,11 +6,17 @@ concretely,
 {r -> 5 * [5 -> 3 *...] }
 returns
 {r -> 3 * [5 -> 3 *...] }
+{ S1 =i {v} ++ S ;
+  [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, 0, S)}
+
+void list_copy(loc x)
+
+{true ; lseg(x, 0, S1)}
 #######
 
-{true; ret :-> hd ** [hd, 1] ** hd :-> x ** lsegs(x, y, s)}
-  void fstElement(loc ret, loc y)
-{true ; ret :-> z ** lsegs(z, y, s) }
+{S1 =i {v} ++ S ; ret :-> x **  [x,2] ** x :-> v ** (x+1) :-> nxt ** lseg(nxt, 0, S)}
+void fstelement2(loc ret)
+{true ;  ret :-> v ** lseg(x, 0, S1)}
 
 ######
 // ret points to the head of the SLL, hd points to the second element of the SLL (represented as lsegs)
