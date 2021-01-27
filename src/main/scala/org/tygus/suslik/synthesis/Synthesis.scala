@@ -14,6 +14,7 @@ import org.tygus.suslik.synthesis.rules.DelegatePureSynthesis
 import org.tygus.suslik.synthesis.tactics.Tactic
 import org.tygus.suslik.synthesis.rules.Rules._
 import org.tygus.suslik.util.SynStats
+import ujson.IndexedValue.False
 
 import scala.Console._
 import scala.annotation.tailrec
@@ -25,14 +26,16 @@ import scala.collection.mutable
 
 // Current goal: given a set of complete input-output examples of linked lists, each of which has as output the last element of the linked list,
 // the synthesizer should be able to synthesize a program that returns the last element of the linked list.
-class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: ProofTrace) extends SepLogicUtils {
+class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: ProofTrace ) extends SepLogicUtils {
   import log.out.testPrintln
-  def synthesizeProc(funGoal: FunSpec, env: Environment, sketch: Statement, hints: (List[(Var, Int)], List[(Var, Int)])):
-  (List[Procedure], SynStats,  Option[mutable.Map[MemoGoal, GoalStatus]] ) = {
+  def synthesizeProc(funGoal: FunSpec, env: Environment, sketch: Statement,
+                     examples:Option[List[(Map[String, Int], (String, String, List[Int]) , Int)]]):
+  (List[Procedure], SynStats) = {
     implicit val config: SynConfig = env.config
     implicit val stats: SynStats = env.stats
 
     var FunSpec(name, tp, formals, pre, post, var_decl) = funGoal
+
     if (!CyclicProofChecker.isConfigured()) {
       log.print(List((s"Cyclic proof checker is not configured! All termination check will be considered TRUE (this not sound).\n", Console.RED)))
     } else {
@@ -48,34 +51,104 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     memo.clear()
     ProofTrace.current = trace
     try {
-      synthesize(goal)(stats = stats) match {
-        case (Some((body, helpers)), cache) =>
+      synthesize(goal, examples)(stats = stats) match {
+        case (Some((body, helpers))) =>
           testPrintln(s"Succeeded leaves (${successLeaves.length}): ${successLeaves.map(n => s"${n.pp()}").mkString(" ")})")
           val main = Procedure(funGoal, body)
-          (main :: helpers, stats, Some(cache))
-        case (None, _) =>
+          (main :: helpers, stats)
+        case (None) =>
           log.out.printlnErr(s"Deductive synthesis failed for the goal\n ${goal.pp}")
-          (Nil, stats, None)
+          (Nil, stats)
 
       }
     } catch {
       case SynTimeOutException(msg) =>
         log.out.printlnErr(msg)
-        (Nil, stats, None)
+        (Nil, stats)
     }
   }
 
-  protected def synthesize(goal: Goal)
-                          (stats: SynStats): (Option[Solution],  mutable.Map[MemoGoal, GoalStatus] ) = {
+  protected def synthesize(goal: Goal, examples:Option[List[(Map[String, Int], (String, String, List[Int]) , Int)]])
+                          (stats: SynStats): (Option[Solution] ) = {
     // initialize goal as an OrNode
-    init(goal)
-    // process work list which is a singleton containing OrNode(goal)
-    processWorkList(stats, goal.env.config)
+
+
+    val preSpatial = goal.pre.sigma
+    val prePure = goal.pre.phi
+    val postSpatial = goal.post.sigma
+    val postPure = goal.post.phi
+    val has_examples = examples match {
+      case Some(_) => true
+      case None => false
+    }
+    if (has_examples){
+      val ret_binding = postSpatial.ptss match {
+        case retPointsTo::Nil=> Some(retPointsTo.value)
+        case _ =>
+          testPrintln("currently only forcing there to be one ret value")
+          None
+      }
+      val examples_parsed = examples match {
+        case Some(ls) => ls.map(x => (x._1.toList.map(y => (Var(y._1), IntConst(y._2))).toMap, x._2, IntConst(x._3)))
+        case None => ???
+      }
+      val new_examples = examples_parsed.map(x=> (x._1 , x._2, Map(ret_binding.get.asInstanceOf[Var] -> x._3)))
+      val test = new_examples(0)
+      val newPreSpatial = preSpatial.subst(test._1)
+      val newPostSpatial = postSpatial.subst(test._3)
+      val newPre = Assertion(goal.pre.phi, newPreSpatial)
+      val newPost = Assertion(goal.post.phi, newPostSpatial)
+      testPrintln(newPreSpatial.toString)
+      testPrintln(newPostSpatial.toString)
+      testPrintln(examples.toString)
+      val newgoal = Goal(newPre, newPost, goal.gamma, goal.programVars,
+        goal.universalGhosts, goal.fname, goal.label, goal.parent,
+        goal.env, goal.sketch, goal.callGoal
+      )
+//      (pre: Assertion,
+//        post: Assertion,
+//        gamma: Gamma, // types of all variables (program, universal, and existential)
+//        programVars: List[Var], // program-level variables
+//        universalGhosts: Set[Var], // universally quantified ghost variables
+//        fname: String, // top-level function name
+//        label: GoalLabel, // unique id within the derivation
+//        parent: Option[Goal], // parent goal in the derivation
+//        env: Environment, // predicates and components
+//        sketch: Statement, // sketch
+//        callGoal: Option[SuspendedCallGoal]
+//      )
+
+      testPrintln(s"new examples is ${new_examples}")
+      init(goal)
+      testPrintln(goal.toString)
+      testPrintln(goal.pre.sigma.chunks.toString)
+      val test_map = Map(Var("x") -> IntConst(0), Var("y") -> IntConst(10), Var("z") -> IntConst(10))
+
+      testPrintln(s"pre without subst: ${goal.pre.sigma.toString}")
+      testPrintln(s"pre subst: ${goal.pre.sigma.subst(test_map).toString}")
+      testPrintln(s"${goal.post.sigma.ptss.toString()}")
+      testPrintln(s"post without subst: ${goal.post.sigma.toString}")
+      testPrintln(s"post subst: ${goal.post.sigma.subst(test_map)}")
+
+      testPrintln("\n")
+      testPrintln(s"pre pure: ${goal.pre.phi.pp}, pre spatial: ${goal.pre.sigma.pp}" )
+      testPrintln(s"post pure: ${goal.post.phi.pp}, post spatial: ${goal.post.sigma.pp}" )
+      // take original pre and post, create example worlds by subst. the vars with concrete values and then run the synthesizer?
+      // alternatively, at every subgoal, we want to extract out goal information, and then subst with concrete values and evaluate
+      // that they are satisfied, else backtrack? but isn't this a more labor intensive way of doing what we do in the first method?
+      // process work list which is a singleton containing OrNode(goal)
+      processWorkList(stats, goal.env.config, Some(new_examples))
+    } else {
+      init(goal)
+      processWorkList(stats, goal.env.config, None)
+    }
+
   }
 
   @tailrec final def processWorkList(implicit
                                      stats: SynStats,
-                                     config: SynConfig): (Option[Solution],  mutable.Map[MemoGoal, GoalStatus] ) = {
+                                     config: SynConfig,
+                                     examples:Option[List[(Map[Var, IntConst], (String, String, List[Int]) , Map[Var,IntConst])]]): (Option[Solution] ) = {
     // Check for timeouts
     if (!config.interactive && stats.timedOut) {
       throw SynTimeOutException(s"\n\nThe derivation took too long: more than ${config.timeOut} seconds.\n")
@@ -83,7 +156,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     val sz = worklist.length
     stats.updateMaxWLSize(sz)
 
-    if (worklist.isEmpty) (None, mutable.Map.empty) // No more goals to try: synthesis failed
+    if (worklist.isEmpty) (None) // No more goals to try: synthesis failed
     else {
       val (node, addNewNodes) = selectNode // Select next node to expand based on DFS/BFS/Min-cost
       // default = min-cost. combining strategy: add new node where the curr min-cost node was.
@@ -113,12 +186,12 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           worklist = addNewNodes(List(node))
           None
         }
-        case None => expandNode(node, addNewNodes) // First time we see this goal: do expand
+        case None => expandNode(node, addNewNodes, examples) // First time we see this goal: do expand
       }
       res match {
         case None => processWorkList //solveSubGoals
         case sol => {
-          (sol, memo.returnCache)
+          (sol)
         }
       }
     }
@@ -141,15 +214,24 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
       (best, worklist.take(idx) ++ _ ++ worklist.drop(idx + 1))
     }
 
-  var store: List[Option[(Statement, List[Procedure])]] = List[Option[(Statement, List[Procedure])]]()
-
   // Expand node and return either a new worklist or the final solution
-  protected def expandNode(node: OrNode, addNewNodes: List[OrNode] => List[OrNode])(implicit stats: SynStats,
-                                                                                    config: SynConfig): Option[Solution] = {
+  protected def expandNode(node: OrNode, addNewNodes: List[OrNode] => List[OrNode],
+                           examples: Option[List[(Map[Var, IntConst], (String, String, List[Int]) , Map[Var, IntConst])]])
+                          (implicit stats: SynStats, config: SynConfig): Option[Solution] = {
     val goal = node.goal
+    val prune = examples match  {
+      case None => false
+      case Some(_) => true
+    }
     memo.save(goal, Expanded)
     implicit val ctx = log.Context(goal)
-
+    examples match {
+      case Some(e) => testPrintln(e.toString())
+      case None => ()
+    }
+    testPrintln("pre and post incoming: ")
+    testPrintln(goal.pre.sigma.toString)
+    testPrintln(goal.post.sigma.toString)
     // Apply all possible rules to the current goal to get a list of alternative expansions,
     // each of which can have multiple open subgoals
     // rules are any phased rules since our sketch is a Hole and we set phased config to true.
@@ -191,6 +273,19 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         /**
          Either perform the example-driven pruning here, or below
         */
+        testPrintln("hello")
+        for (node <- newNodes){
+          testPrintln(node.goal.pp)
+        }
+
+        //think about how to propagate the map forward (update the environment since variable names
+        // change as we traverse the worklist (i.e., x -> x2)
+        // think about how to even use the pre and post subst to determine whether or not to reject???
+        testPrintln(s"current worklist")
+        for (x <- worklist){
+          testPrintln(x.goal.pp)
+        }
+        testPrintln("\n")
 
         // Suspend nodes with older and-siblings
         newNodes.foreach(n => {
@@ -202,6 +297,14 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           }
         })
 
+        for (e <- examples.getOrElse(List())){
+          for (node <- newNodes) {
+            val currgoal = node.goal
+            val preSpatial = currgoal.pre.sigma.subst(e._1)
+            val postSpatial = currgoal.post.sigma.subst(e._3)
+            testPrintln(s"${preSpatial} \n ${postSpatial}")
+          }
+        }
         worklist = addNewNodes(newNodes.toList)
         if (newNodes.isEmpty) {
           // This is a dead-end: prune worklist and try something else

@@ -31,6 +31,7 @@ object SearchTree {
     successLeaves = List()
   }
 
+
   /**
     * Or-node in the search tree;
     * represents a synthesis goal to solve.

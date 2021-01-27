@@ -4,14 +4,12 @@ import java.io.{File, PrintWriter}
 import java.nio.file.Paths
 
 import org.tygus.suslik.LanguageUtils
-import org.tygus.suslik.language.Expressions.Var
 import org.tygus.suslik.language.Statements.Procedure
-import org.tygus.suslik.logic.{Environment, FunSpec}
+import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.logic.Preprocessor._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.parsing.SSLParser
-import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceJson, ProofTraceNone, StopWatch}
-import org.tygus.suslik.synthesis.Memoization.{Expanded, Failed, Succeeded}
+import org.tygus.suslik.report._
 import org.tygus.suslik.synthesis.SearchTree.AndNode
 import org.tygus.suslik.synthesis.tactics._
 import org.tygus.suslik.util._
@@ -50,7 +48,9 @@ trait SynthesisRunnerUtil {
     LanguageUtils.resetFreshNameGenerator()
   }
 
-  def doRunWithExamples(testname: String, desc: String, in: String, out: String,params: SynConfig = defaultConfig) = {
+  def doRunWithExamples(testname: String, desc: String, in: String, out: String,
+                        params: SynConfig = defaultConfig,
+                        examples: List[(Map[String, Int], (String, String, List[Int]) , Int)]) = {
     LanguageUtils.resetFreshNameGenerator()
   }
   def getDescInputOutput(testFilePath: String, initialParams: SynConfig = defaultConfig): (String, String, String, String, SynConfig) = {
@@ -132,9 +132,16 @@ trait SynthesisRunnerUtil {
     synthesizeFromSpec(testName, in, out, params)
   }
 
-  def synthesizeFromSpec(testName: String, text: String, out: String = noOutputCheck, params: SynConfig = defaultConfig, hints : (List[(Var, Int)], List[(Var, Int)]) = (List(), List()))
+  def synthesizeFromSpec(testName: String, text: String, out: String = noOutputCheck,
+                                     params: SynConfig = defaultConfig): Unit = {
+    synthesizeFromSpecWithExamples(testName, text,out, params, None)
+
+  }
+  def synthesizeFromSpecWithExamples(testName: String, text: String, out: String = noOutputCheck, params: SynConfig = defaultConfig,
+                                    examples : Option[List[(Map[String, Int], (String, String, List[Int]) , Int)]])
   {
     import log.out.testPrintln
+    testPrintln(examples.toString)
     val parser = new SSLParser
     val res = params.inputFormat match {
       case `dotSyn` => parser.parseGoalSYN(text)
@@ -156,7 +163,7 @@ trait SynthesisRunnerUtil {
     val synthesizer = createSynthesizer(env)
 
     env.stats.start()
-    val sresult = synthesizer.synthesizeProc(spec, env, body, hints)
+    val sresult = synthesizer.synthesizeProc(spec, env, body, examples)
     val duration = env.stats.duration
 
     SynStatUtil.log(testName, duration, params, spec, sresult._1, sresult._2)
@@ -208,12 +215,6 @@ trait SynthesisRunnerUtil {
             "AST for Body: \n" + procs.head.body.toString()
 
         }
-        val cache = sresult._3 match {
-          case Some(m) =>
-            m
-          case None =>
-            throw SynthesisException(s"Failed to synthesise:\n$sresult")
-        }
         if (params.printStats) {
           testPrintln(s"\n[$testName]:", Console.MAGENTA)
           testPrintln(params.pp)
@@ -222,18 +223,6 @@ trait SynthesisRunnerUtil {
           printStats(sresult._2)
 
           testPrintln(result, Console.YELLOW)
-          testPrintln("Printing memoized solutions to successful nodes")
-          for ((k,v) <- cache) {
-            v match {
-              case Failed => ()
-              case Expanded => ()
-              case Succeeded(sol) =>
-              {
-                testPrintln(s"Goal Pre: ${k.pre.sigma.chunks}\nGoal Post :${k.post.sigma.chunks} \nGoal sketch :${k.sketch}\nSolution :${sol._1.toString}")
-              }
-
-            }
-          }
           testPrintln("-----------------------------------------------------")
         } else {
           println(result)
@@ -353,7 +342,9 @@ trait SynthesisRunnerUtil {
     }
   }
 
-  def runSingleTestFromDirWithExamples(dir: String, fname: String, params: SynConfig = defaultConfig) {
+  def runSingleTestFromDirWithExamples(dir: String, fname: String,
+                                       examples : List[(Map[String, Int], (String, String, List[Int]) , Int)],
+                                       params: SynConfig = defaultConfig) {
     var testDir = new File(dir)
     if (!testDir.exists()) {
       val path = List(rootDir, dir).mkString(File.separator)
@@ -377,7 +368,7 @@ trait SynthesisRunnerUtil {
         case Some(f) =>
           val (testName, desc, in, out, allParams) = getDescInputOutput(f.getAbsolutePath, params)
           val fullInput = List(defs, in).mkString("\n")
-          doRunWithExamples(testName, desc, fullInput, out, allParams)
+          doRunWithExamples(testName, desc, fullInput, out, allParams, examples)
         case None =>
           System.err.println(s"No file with the name $fname found in the directory $dir.")
       }
