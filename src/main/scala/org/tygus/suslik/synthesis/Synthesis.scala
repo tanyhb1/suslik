@@ -1,7 +1,7 @@
 package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.certification.CertTree
-import org.tygus.suslik.language.Expressions.{IntConst, Var}
+import org.tygus.suslik.language.Expressions.{IntConst, SetLiteral, Var}
 import org.tygus.suslik.language.Statements.{Solution, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
@@ -89,10 +89,15 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           None
       }
       val examples_parsed = examples match {
-        case Some(ls) => ls.map(x => (x._1.toList.map(y => (Var(y._1), IntConst(y._2))).toMap, x._2, IntConst(x._3)))
+        case Some(ls) => ls.map(x => (x._1.toList.map(y => (Var(y._1), IntConst(y._2))).toMap,
+          x._2._3.map(y=> IntConst(y)), IntConst(x._3)))
         case None => ???
       }
-      val new_examples = examples_parsed.map(x=> (x._1 , x._2, Map(ret_binding.get.asInstanceOf[Var] -> x._3)))
+      val set_binding = preSpatial.apps.head.args.last.asInstanceOf[Var]
+
+      testPrintln(set_binding.toString)
+      val new_examples = examples_parsed.map(x=> (x._1 ,
+        Map(set_binding ->SetLiteral(x._2)), Map(ret_binding.get.asInstanceOf[Var] -> x._3)))
       val test = new_examples(0)
       val newPreSpatial = preSpatial.subst(test._1)
       val newPostSpatial = postSpatial.subst(test._3)
@@ -148,7 +153,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
   @tailrec final def processWorkList(implicit
                                      stats: SynStats,
                                      config: SynConfig,
-                                     examples:Option[List[(Map[Var, IntConst], (String, String, List[Int]) , Map[Var,IntConst])]]): (Option[Solution] ) = {
+                                     examples:Option[List[(Map[Var, IntConst], (Map[Var,SetLiteral]) , Map[Var,IntConst])]]): (Option[Solution] ) = {
     // Check for timeouts
     if (!config.interactive && stats.timedOut) {
       throw SynTimeOutException(s"\n\nThe derivation took too long: more than ${config.timeOut} seconds.\n")
@@ -216,13 +221,10 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
 
   // Expand node and return either a new worklist or the final solution
   protected def expandNode(node: OrNode, addNewNodes: List[OrNode] => List[OrNode],
-                           examples: Option[List[(Map[Var, IntConst], (String, String, List[Int]) , Map[Var, IntConst])]])
+                           examples: Option[List[(Map[Var, IntConst], (Map[Var, SetLiteral]) , Map[Var, IntConst])]])
                           (implicit stats: SynStats, config: SynConfig): Option[Solution] = {
     val goal = node.goal
-    val prune = examples match  {
-      case None => false
-      case Some(_) => true
-    }
+
     memo.save(goal, Expanded)
     implicit val ctx = log.Context(goal)
     examples match {
@@ -273,18 +275,22 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         /**
          Either perform the example-driven pruning here, or below
         */
-        testPrintln("hello")
+        testPrintln(s"current worklist")
+        for (x <- worklist){
+          testPrintln(x.goal.pp)
+        }
+        testPrintln("new nodes")
         for (node <- newNodes){
           testPrintln(node.goal.pp)
         }
 
         //think about how to propagate the map forward (update the environment since variable names
         // change as we traverse the worklist (i.e., x -> x2)
+        // * probably by keeping set of elements, then checking for introduction of new variables, then adding that to map.
+        // ** try to extract this renaming info from the rule application (rather than calculating it every iteration)
+
         // think about how to even use the pre and post subst to determine whether or not to reject???
-        testPrintln(s"current worklist")
-        for (x <- worklist){
-          testPrintln(x.goal.pp)
-        }
+
         testPrintln("\n")
 
         // Suspend nodes with older and-siblings
@@ -300,9 +306,11 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         for (e <- examples.getOrElse(List())){
           for (node <- newNodes) {
             val currgoal = node.goal
-            val preSpatial = currgoal.pre.sigma.subst(e._1)
+            val preSpatial = currgoal.pre.sigma.subst(e._1).subst(e._2)
             val postSpatial = currgoal.post.sigma.subst(e._3)
-            testPrintln(s"${preSpatial} \n ${postSpatial}")
+            val ghosts = currgoal.pre.ghosts(e._1.keySet.union(e._3.keySet))
+            testPrintln(s"MapPre: ${e._1} \n MapPost: ${e._3} \n ProgramVariables: ${ghosts} " +
+              s"\n PreSpatialSubst: ${preSpatial} \n PostSpatialSubst: ${postSpatial}")
           }
         }
         worklist = addNewNodes(newNodes.toList)
