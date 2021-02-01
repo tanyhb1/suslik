@@ -93,10 +93,20 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           x._2._3.map(y=> IntConst(y)), IntConst(x._3)))
         case None => ???
       }
-      val set_binding = preSpatial.apps.head.args.last.asInstanceOf[Var]
+      // find out how to make this get the LHS set instead of the RHS but lets cheat for now
+      val set_binding = preSpatial.apps.head.args.last.asInstanceOf[Var] match {
+        case Var(x) => Var(x+'1')
+      }
+      testPrintln(set_binding.pp)
+      val set_bind = prePure.-(set_binding).conjuncts
+      val curr_ghosts = goal.ghosts
       val new_examples = examples_parsed.map(x=> (x._1 ,
-        Map(set_binding -> SetLiteral(x._2)), Map(ret_binding.get._1.asInstanceOf[Var] -> x._3)))
-
+        Map(set_binding -> SetLiteral(x._2)), Map(ret_binding.get._1.asInstanceOf[Var] -> x._3), curr_ghosts))
+//      val used_variables = new_examples.map(x=>
+//        goal.pre.ghosts(x._1.keySet.union(x._2.keySet).union(x._3.keySet)).union(
+//          goal.post.ghosts(x._1.keySet.union(x._2.keySet).union(x._3.keySet))))
+      for (x <- goal.ghosts){
+        testPrintln(x.toString)}
       init(goal)
 
       // take original pre and post, create example worlds by subst. the vars with concrete values and then run the synthesizer?
@@ -114,7 +124,8 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
   @tailrec final def processWorkList(implicit
                                      stats: SynStats,
                                      config: SynConfig,
-                                     examples:Option[List[(Map[Var, IntConst], (Map[Var,SetLiteral]) , Map[Var,IntConst])]]): (Option[Solution] ) = {
+                                     examples:Option[List[(Map[Var, IntConst],
+                                       (Map[Var,SetLiteral]) , Map[Var,IntConst], Set[Var])]]): (Option[Solution] ) = {
     // Check for timeouts
     if (!config.interactive && stats.timedOut) {
       throw SynTimeOutException(s"\n\nThe derivation took too long: more than ${config.timeOut} seconds.\n")
@@ -182,7 +193,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
 
   // Expand node and return either a new worklist or the final solution
   protected def expandNode(node: OrNode, addNewNodes: List[OrNode] => List[OrNode],
-                           examples: Option[List[(Map[Var, IntConst], (Map[Var, SetLiteral]) , Map[Var, IntConst])]])
+                           examples: Option[List[(Map[Var, IntConst], (Map[Var, SetLiteral]) , Map[Var, IntConst], Set[Var])]])
                           (implicit stats: SynStats, config: SynConfig): Option[Solution] = {
     val goal = node.goal
 
@@ -267,11 +278,20 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         for (e <- examples.getOrElse(List())){
           for (node <- newNodes) {
             val currgoal = node.goal
-            val preSpatial = currgoal.pre.sigma.subst(e._1).subst(e._2)
-            val postSpatial = currgoal.post.sigma.subst(e._3)
-            val ghosts = currgoal.pre.ghosts(e._1.keySet.union(e._3.keySet))
-            testPrintln(s"MapPre: ${e._1} \n MapPost: ${e._3} \n ProgramVariables: ${ghosts} " +
-              s"\n PreSpatialSubst: ${preSpatial} \n PostSpatialSubst: ${postSpatial}")
+//            val prePure = currgoal.pre.phi.subst(e._1).subst(e._2).pp
+//            val postPure = currgoal.post.phi.subst(e._3).pp
+//            val preSpatial = currgoal.pre.sigma.subst(e._1).subst(e._2)
+//            val postSpatial = currgoal.post.sigma.subst(e._3)
+            val prePure = currgoal.pre.phi.subst(e._1).subst(e._2).subst(e._3).pp
+            val postPure = currgoal.post.phi.subst(e._1).subst(e._2).subst(e._3).pp
+            val preSpatial = currgoal.pre.sigma.subst(e._1).subst(e._2).subst(e._3)
+            val postSpatial = currgoal.post.sigma.subst(e._1).subst(e._2).subst(e._3)
+            val currghosts = e._4
+            val newghosts = currgoal.ghosts
+            testPrintln(s"MapPre: ${e._1} \n MapSet:${e._2} \n MapPost: ${e._3} \n " +
+              s"PreSpatialSubst: ${preSpatial} \n PostSpatialSubst: ${postSpatial}\n " +
+              s"PrePureSubst: ${prePure} \n PostPureSubst: ${postPure}\n " +
+              s"curr ghosts =  ${currghosts} \n newghosts = ${newghosts} \n" )
           }
         }
         worklist = addNewNodes(newNodes.toList)
