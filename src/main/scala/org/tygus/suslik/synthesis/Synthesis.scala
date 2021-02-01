@@ -83,7 +83,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     }
     if (has_examples){
       val ret_binding = postSpatial.ptss match {
-        case retPointsTo::Nil=> Some(retPointsTo.value)
+        case retPointsTo::Nil=> Some(retPointsTo.value, retPointsTo.loc) // for ret -> v, return Some(v, ret)
         case _ =>
           testPrintln("currently only forcing there to be one ret value")
           None
@@ -94,50 +94,11 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         case None => ???
       }
       val set_binding = preSpatial.apps.head.args.last.asInstanceOf[Var]
-
-      testPrintln(set_binding.toString)
       val new_examples = examples_parsed.map(x=> (x._1 ,
-        Map(set_binding ->SetLiteral(x._2)), Map(ret_binding.get.asInstanceOf[Var] -> x._3)))
-      val test = new_examples(0)
-      val newPreSpatial = preSpatial.subst(test._1)
-      val newPostSpatial = postSpatial.subst(test._3)
-      val newPre = Assertion(goal.pre.phi, newPreSpatial)
-      val newPost = Assertion(goal.post.phi, newPostSpatial)
-      testPrintln(newPreSpatial.toString)
-      testPrintln(newPostSpatial.toString)
-      testPrintln(examples.toString)
-      val newgoal = Goal(newPre, newPost, goal.gamma, goal.programVars,
-        goal.universalGhosts, goal.fname, goal.label, goal.parent,
-        goal.env, goal.sketch, goal.callGoal
-      )
-//      (pre: Assertion,
-//        post: Assertion,
-//        gamma: Gamma, // types of all variables (program, universal, and existential)
-//        programVars: List[Var], // program-level variables
-//        universalGhosts: Set[Var], // universally quantified ghost variables
-//        fname: String, // top-level function name
-//        label: GoalLabel, // unique id within the derivation
-//        parent: Option[Goal], // parent goal in the derivation
-//        env: Environment, // predicates and components
-//        sketch: Statement, // sketch
-//        callGoal: Option[SuspendedCallGoal]
-//      )
+        Map(set_binding -> SetLiteral(x._2)), Map(ret_binding.get._1.asInstanceOf[Var] -> x._3)))
 
-      testPrintln(s"new examples is ${new_examples}")
       init(goal)
-      testPrintln(goal.toString)
-      testPrintln(goal.pre.sigma.chunks.toString)
-      val test_map = Map(Var("x") -> IntConst(0), Var("y") -> IntConst(10), Var("z") -> IntConst(10))
 
-      testPrintln(s"pre without subst: ${goal.pre.sigma.toString}")
-      testPrintln(s"pre subst: ${goal.pre.sigma.subst(test_map).toString}")
-      testPrintln(s"${goal.post.sigma.ptss.toString()}")
-      testPrintln(s"post without subst: ${goal.post.sigma.toString}")
-      testPrintln(s"post subst: ${goal.post.sigma.subst(test_map)}")
-
-      testPrintln("\n")
-      testPrintln(s"pre pure: ${goal.pre.phi.pp}, pre spatial: ${goal.pre.sigma.pp}" )
-      testPrintln(s"post pure: ${goal.post.phi.pp}, post spatial: ${goal.post.sigma.pp}" )
       // take original pre and post, create example worlds by subst. the vars with concrete values and then run the synthesizer?
       // alternatively, at every subgoal, we want to extract out goal information, and then subst with concrete values and evaluate
       // that they are satisfied, else backtrack? but isn't this a more labor intensive way of doing what we do in the first method?
