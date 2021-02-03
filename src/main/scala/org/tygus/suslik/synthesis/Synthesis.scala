@@ -240,17 +240,12 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           val extraCost = if (j == -1) 0 else e.subgoals.drop(j + 1).map(_.cost).sum
           OrNode(j +: andNode.id, g, Some(andNode), node.extraCost + extraCost)
         }
-        /**
-         Either perform the example-driven pruning here, or below
-        */
 
         //think about how to propagate the map forward (update the environment since variable names
         // change as we traverse the worklist (i.e., x -> x2)
         // * probably by keeping set of elements, then checking for introduction of new variables, then adding that to map.
         // ** try to extract this renaming info from the rule application (rather than calculating it every iteration)
-
         // think about how to even use the pre and post subst to determine whether or not to reject???
-
         testPrintln("\n")
 
         // Suspend nodes with older and-siblings
@@ -262,13 +257,12 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
             memo.suspendSibling(n, sib) // always process the left and-goal first; unsuspend next once it succeeds
           }
         })
-
         worklist = addNewNodes(newNodes.toList)
-        testPrintln(s"current worklist")
+        testPrintln(s"current worklist of size ${worklist.length}")
         for (x <- worklist){
-          testPrintln("1\n")
           testPrintln(x.goal.pp)
         }
+        testPrintln("\n")
         if (newNodes.isEmpty) {
           // This is a dead-end: prune worklist and try something else
           log.print(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
@@ -293,7 +287,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
                                                        stats: SynStats,
                                                        config: SynConfig,
                                                        ctx: log.Context,
-                                                       examples : Option[List[(Map[Var, IntConst], (Map[Var, SetLiteral]) ,
+                                                       examples_opt : Option[List[(Map[Var, IntConst], (Map[Var, SetLiteral]) ,
                                                          Map[Var, IntConst], Set[Var])]]): Seq[RuleResult] = {
     implicit val goal: Goal = node.goal
     val currgoal = node.goal
@@ -304,35 +298,49 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         // successful result = one or more alternative sub-derivations
         // sub-derivations are just a pair (x,y) where x are zero or more sub-goals to be solved and y is the continuation to form the solution
         var tmp = true
-        for (e <- examples.getOrElse(List())) {
-            // is it because the substitutions need to update and keep track of the environment as the synthesis progresses???
-            val prePure = currgoal.pre.phi.subst(e._1).subst(e._2).subst(e._3)
-            val postPure = currgoal.post.phi.subst(e._3)
-            val preSpatial = currgoal.pre.sigma.subst(e._1).subst(e._2)
-            val postSpatial = currgoal.post.sigma.subst(e._3)
-//          val prePure = currgoal.pre.phi.subst(e._1).subst(e._2).subst(e._3)
-//          val postPure = currgoal.post.phi.subst(e._1).subst(e._2).subst(e._3)
-//          val preSpatial = currgoal.pre.sigma.subst(e._1).subst(e._2).subst(e._3)
-//          val postSpatial = currgoal.post.sigma.subst(e._1).subst(e._2).subst(e._3)
-            testPrintln(s"MapPre: ${e._1} \n MapSet:${e._2} \n MapPost: ${e._3} \n " +
-              s"PreSpatialSubst: ${preSpatial.pp} \n PostSpatialSubst: ${postSpatial.pp}\n " +
-              s"PrePureSubst: ${prePure.pp} \n PostPureSubst: ${postPure.pp}\n " +
-              s"Rule: ${r}" )
-            val new_goal = goal match {
-              case Goal(pre, post, gamma, pv, ug, fn, lbl, parent,env,sketch,cg) =>
-                Goal(Assertion(prePure, preSpatial), Assertion(postPure, postSpatial), gamma, pv, ug, fn, lbl, parent,env,sketch,cg)
-            }
-            if (r(new_goal).isEmpty){
-              testPrintln("the above failed \n")
-              tmp = false
-            }
+        var i = 0
+        val examples = examples_opt.getOrElse(List())
+        while (tmp && i < examples.length) {
+          // keep track of GV and stuff like i was trying to do above.
+          // is it because the substitutions need to update and keep track of the environment as the synthesis progresses???
+          val e = examples(i)
+          val prePure = currgoal.pre.phi.subst(e._1).subst(e._2).subst(e._3)
+          val postPure = currgoal.post.phi.subst(e._3)
+          val preSpatial = currgoal.pre.sigma.subst(e._1).subst(e._2)
+          val postSpatial = currgoal.post.sigma.subst(e._3)
+          //          val prePure = currgoal.pre.phi.subst(e._1).subst(e._2).subst(e._3)
+          //          val postPure = currgoal.post.phi.subst(e._1).subst(e._2).subst(e._3)
+          //          val preSpatial = currgoal.pre.sigma.subst(e._1).subst(e._2).subst(e._3)
+          //          val postSpatial = currgoal.post.sigma.subst(e._1).subst(e._2).subst(e._3)
+          testPrintln(s"MapPre: ${e._1} \n MapSet:${e._2} \n MapPost: ${e._3} \n " +
+            s"PreSpatialSubst: ${preSpatial.pp} \n PostSpatialSubst: ${postSpatial.pp}\n " +
+            s"PrePureSubst: ${prePure.pp} \n PostPureSubst: ${postPure.pp}\n " +
+            s"Rule: ${r}" )
+          val new_goal = goal match {
+            case Goal(pre, post, gamma, pv, ug, fn, lbl, parent,env,sketch,cg) =>
+              Goal(Assertion(prePure, preSpatial), Assertion(postPure, postSpatial), gamma, pv, ug, fn, lbl, parent,env,sketch,cg)
+          }
+          var new_goal_with_rule : Seq[RuleResult] = Seq()
+          try {
+            new_goal_with_rule = r(new_goal)
+          }
+          catch{
+            case _ =>
+
+              new_goal_with_rule = r(goal)
+          }
+          if (new_goal_with_rule.isEmpty){
+            testPrintln("the above failed \n")
+            tmp = false
+          }
+          i += 1
         }
         if (!tmp) {
           testPrintln("Trying new rule... \n")
           applyRules(rs)
         }
         else {
-          testPrintln(s"Survived pruning: ${goal.pre.pp}")
+          testPrintln(s"Survived pruning: ${goal.pp}")
           val children = stats.recordRuleApplication(r.toString, r(goal))
 
           if (children.isEmpty) {
@@ -345,10 +353,6 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
             log.print(List((s"$r (${children.size}): ${childFootprints.head}", RESET)))
             for {c <- childFootprints.tail}
               log.print(List((s" <|>  $c", CYAN)))
-
-            /**
-              * Or perform the example-driven pruning here.
-              **/
             if (r.isInstanceOf[InvertibleRule]) { // optimization
               // The rule is invertible: do not try other rules on this goal
               children

@@ -8,9 +8,9 @@ returns
 {r -> 3 * [5 -> 3 *...] }
 #######
 
-{true; ret :-> hd ** [hd, 1] ** hd :-> x ** lsegs(x, y, s)}
-  void fstElement(loc ret, loc y)
-{true ; ret :-> z ** lsegs(z, y, s) }
+{S1 =i {x} ++ S ; ret :-> x **  [x,1] ** x :-> v ** lsegs(v, 0, S)}
+void fstelement(loc ret)
+{true ;  ret :-> v ** lsegs(x, 0, S1)}
 
 ######
 // ret points to the head of the SLL, hd points to the second element of the SLL (represented as lsegs)

@@ -14,5 +14,5 @@ predicate lsegn(loc x, loc y, int len) {
 
 predicate lsegs(loc x, loc y, set s) {
 |  x == y  => { s == {} ; emp }
-|  x != y  => { s == {x} ++ s1 ; [x, 1] ** x :-> nxt ** lsegs(nxt, y, s1) }
+|  not (x == y)  => { s == {x} ++ s1 ; [x, 1] ** x :-> nxt ** lsegs(nxt, y, s1) }
 }
