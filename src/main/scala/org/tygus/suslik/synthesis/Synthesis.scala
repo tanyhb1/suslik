@@ -305,6 +305,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         // sub-derivations are just a pair (x,y) where x are zero or more sub-goals to be solved and y is the continuation to form the solution
         var tmp = true
         for (e <- examples.getOrElse(List())) {
+            // is it because the substitutions need to update and keep track of the environment as the synthesis progresses???
             val prePure = currgoal.pre.phi.subst(e._1).subst(e._2).subst(e._3)
             val postPure = currgoal.post.phi.subst(e._3)
             val preSpatial = currgoal.pre.sigma.subst(e._1).subst(e._2)
