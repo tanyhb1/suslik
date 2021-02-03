@@ -97,7 +97,6 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
       val set_binding = preSpatial.apps.head.args.last.asInstanceOf[Var] match {
         case Var(x) => Var(x+'1')
       }
-      testPrintln(set_binding.pp)
       val set_bind = prePure.-(set_binding).conjuncts
       val curr_ghosts = goal.ghosts
       val new_examples = examples_parsed.map(x=> (x._1 ,
@@ -105,8 +104,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
 //      val used_variables = new_examples.map(x=>
 //        goal.pre.ghosts(x._1.keySet.union(x._2.keySet).union(x._3.keySet)).union(
 //          goal.post.ghosts(x._1.keySet.union(x._2.keySet).union(x._3.keySet))))
-      for (x <- goal.ghosts){
-        testPrintln(x.toString)}
+
       init(goal)
 
       // take original pre and post, create example worlds by subst. the vars with concrete values and then run the synthesizer?
@@ -193,7 +191,8 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
 
   // Expand node and return either a new worklist or the final solution
   protected def expandNode(node: OrNode, addNewNodes: List[OrNode] => List[OrNode],
-                           examples: Option[List[(Map[Var, IntConst], (Map[Var, SetLiteral]) , Map[Var, IntConst], Set[Var])]])
+                           examples: Option[List[(Map[Var, IntConst], (Map[Var, SetLiteral]) ,
+                             Map[Var, IntConst], Set[Var])]])
                           (implicit stats: SynStats, config: SynConfig): Option[Solution] = {
     val goal = node.goal
 
@@ -203,15 +202,12 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
       case Some(e) => testPrintln(e.toString())
       case None => ()
     }
-    testPrintln("pre and post incoming: ")
-    testPrintln(goal.pre.sigma.toString)
-    testPrintln(goal.post.sigma.toString)
     // Apply all possible rules to the current goal to get a list of alternative expansions,
     // each of which can have multiple open subgoals
     // rules are any phased rules since our sketch is a Hole and we set phased config to true.
     val rules = tactic.nextRules(node)
     //applyRules enumerates all possible sub-derivations obtained by applying the list of rules to our current node.
-    val allExpansions = applyRules(rules)(node, stats, config, ctx)
+    val allExpansions = applyRules(rules)(node, stats, config, ctx, examples)
     // no filtering is done for Phased strategy
     val expansions = tactic.filterExpansions(allExpansions)
     // Check if any of the expansions is a terminal
@@ -247,14 +243,6 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         /**
          Either perform the example-driven pruning here, or below
         */
-        testPrintln(s"current worklist")
-        for (x <- worklist){
-          testPrintln(x.goal.pp)
-        }
-        testPrintln("new nodes")
-        for (node <- newNodes){
-          testPrintln(node.goal.pp)
-        }
 
         //think about how to propagate the map forward (update the environment since variable names
         // change as we traverse the worklist (i.e., x -> x2)
@@ -275,26 +263,12 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           }
         })
 
-        for (e <- examples.getOrElse(List())){
-          for (node <- newNodes) {
-            val currgoal = node.goal
-//            val prePure = currgoal.pre.phi.subst(e._1).subst(e._2).pp
-//            val postPure = currgoal.post.phi.subst(e._3).pp
-//            val preSpatial = currgoal.pre.sigma.subst(e._1).subst(e._2)
-//            val postSpatial = currgoal.post.sigma.subst(e._3)
-            val prePure = currgoal.pre.phi.subst(e._1).subst(e._2).subst(e._3).pp
-            val postPure = currgoal.post.phi.subst(e._1).subst(e._2).subst(e._3).pp
-            val preSpatial = currgoal.pre.sigma.subst(e._1).subst(e._2).subst(e._3)
-            val postSpatial = currgoal.post.sigma.subst(e._1).subst(e._2).subst(e._3)
-            val currghosts = e._4
-            val newghosts = currgoal.ghosts
-            testPrintln(s"MapPre: ${e._1} \n MapSet:${e._2} \n MapPost: ${e._3} \n " +
-              s"PreSpatialSubst: ${preSpatial} \n PostSpatialSubst: ${postSpatial}\n " +
-              s"PrePureSubst: ${prePure} \n PostPureSubst: ${postPure}\n " +
-              s"curr ghosts =  ${currghosts} \n newghosts = ${newghosts} \n" )
-          }
-        }
         worklist = addNewNodes(newNodes.toList)
+        testPrintln(s"current worklist")
+        for (x <- worklist){
+          testPrintln("1\n")
+          testPrintln(x.goal.pp)
+        }
         if (newNodes.isEmpty) {
           // This is a dead-end: prune worklist and try something else
           log.print(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
@@ -318,36 +292,69 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
   protected def applyRules(rules: List[SynthesisRule])(implicit node: OrNode,
                                                        stats: SynStats,
                                                        config: SynConfig,
-                                                       ctx: log.Context): Seq[RuleResult] = {
+                                                       ctx: log.Context,
+                                                       examples : Option[List[(Map[Var, IntConst], (Map[Var, SetLiteral]) ,
+                                                         Map[Var, IntConst], Set[Var])]]): Seq[RuleResult] = {
     implicit val goal: Goal = node.goal
+    val currgoal = node.goal
     rules match {
       case Nil => Vector() // No more rules to apply: done expanding the goal
       case r :: rs =>
         // Invoke the rule (application of the rule occurs here)
         // successful result = one or more alternative sub-derivations
         // sub-derivations are just a pair (x,y) where x are zero or more sub-goals to be solved and y is the continuation to form the solution
-        val children = stats.recordRuleApplication(r.toString, r(goal))
-
-        if (children.isEmpty) {
-          // Rule not applicable: try other rules
-          log.print(List((s"$r FAIL", RESET)), isFail = true)
+        var tmp = true
+        for (e <- examples.getOrElse(List())) {
+            val prePure = currgoal.pre.phi.subst(e._1).subst(e._2).subst(e._3)
+            val postPure = currgoal.post.phi.subst(e._3)
+            val preSpatial = currgoal.pre.sigma.subst(e._1).subst(e._2)
+            val postSpatial = currgoal.post.sigma.subst(e._3)
+//          val prePure = currgoal.pre.phi.subst(e._1).subst(e._2).subst(e._3)
+//          val postPure = currgoal.post.phi.subst(e._1).subst(e._2).subst(e._3)
+//          val preSpatial = currgoal.pre.sigma.subst(e._1).subst(e._2).subst(e._3)
+//          val postSpatial = currgoal.post.sigma.subst(e._1).subst(e._2).subst(e._3)
+            testPrintln(s"MapPre: ${e._1} \n MapSet:${e._2} \n MapPost: ${e._3} \n " +
+              s"PreSpatialSubst: ${preSpatial.pp} \n PostSpatialSubst: ${postSpatial.pp}\n " +
+              s"PrePureSubst: ${prePure.pp} \n PostPureSubst: ${postPure.pp}\n " +
+              s"Rule: ${r}" )
+            val new_goal = goal match {
+              case Goal(pre, post, gamma, pv, ug, fn, lbl, parent,env,sketch,cg) =>
+                Goal(Assertion(prePure, preSpatial), Assertion(postPure, postSpatial), gamma, pv, ug, fn, lbl, parent,env,sketch,cg)
+            }
+            if (r(new_goal).isEmpty){
+              testPrintln("the above failed \n")
+              tmp = false
+            }
+        }
+        if (!tmp) {
+          testPrintln("Trying new rule... \n")
           applyRules(rs)
-        } else {
-          // Rule applicable: try all possible sub-derivation
-          val childFootprints = children.map(log.showChildren(goal))
-          log.print(List((s"$r (${children.size}): ${childFootprints.head}", RESET)))
-          for {c <- childFootprints.tail}
-            log.print(List((s" <|>  $c", CYAN)))
+        }
+        else {
+          testPrintln(s"Survived pruning: ${goal.pre.pp}")
+          val children = stats.recordRuleApplication(r.toString, r(goal))
 
-          /**
-            *  Or perform the example-driven pruning here.
-            * */
-          if (r.isInstanceOf[InvertibleRule]) { // optimization
-            // The rule is invertible: do not try other rules on this goal
-            children
+          if (children.isEmpty) {
+            // Rule not applicable: try other rules
+            log.print(List((s"$r FAIL", RESET)), isFail = true)
+            applyRules(rs)
           } else {
-            // Both this and other rules apply
-            children ++ applyRules(rs)
+            // Rule applicable: try all possible sub-derivation
+            val childFootprints = children.map(log.showChildren(goal))
+            log.print(List((s"$r (${children.size}): ${childFootprints.head}", RESET)))
+            for {c <- childFootprints.tail}
+              log.print(List((s" <|>  $c", CYAN)))
+
+            /**
+              * Or perform the example-driven pruning here.
+              **/
+            if (r.isInstanceOf[InvertibleRule]) { // optimization
+              // The rule is invertible: do not try other rules on this goal
+              children
+            } else {
+              // Both this and other rules apply
+              children ++ applyRules(rs)
+            }
           }
         }
     }

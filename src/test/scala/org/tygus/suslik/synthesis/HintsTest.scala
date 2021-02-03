@@ -87,16 +87,16 @@ class HintsTest extends FunSpec with Matchers with SynthesisRunnerUtil {
   describe("Last element of Linked Lists with complete input-output examples"){
     //x is starting memory address, y is ending memory address, and y -> 3
     // example takes the form of (sigma, input, output) where sigma is execution environment that maps variables to values, input and output are examples.
-    val fst_example = (Map("x" -> 0, "y" -> 10), ("x", "y", List(1,2,3,4)), 1)
-    val snd_example = (Map("x" -> 0, "y" -> 10), ("x", "y", List(4,6,1,2,10,5)), 4)
-    val thd_example = (Map("x" -> 0, "y" -> 10), ("x", "y", List(10,9,8,7,6,5,4,3)), 10)
+    val fst_example = (Map("x" -> 0, "y" -> 100), ("x", "y", List(1,2,3,4)), 1)
+    val snd_example = (Map("x" -> 0, "y" -> 100), ("x", "y", List(4,6,1,2,10,5)), 4)
+    val thd_example = (Map("x" -> 0, "y" -> 100), ("x", "y", List(10,9,8,7,6,5,4,3)), 10)
     val examples2 = List(fst_example, snd_example, thd_example)
     runSingleTestFromDirWithExamples("hints", "lastelement.syn", examples2)
   }
   describe("First element of Linked Lists with complete input-output examples"){
-    val fst_example = (Map("x" -> 0, "y" -> 10), ("x", "y", List(1,2,3,4)), 1)
-    val snd_example = (Map("x" -> 0, "y" -> 10), ("x", "y", List(4,6,1,2,10,5)), 4)
-    val thd_example = (Map("x" -> 0, "y" -> 10), ("x", "y", List(10,9,8,7,6,5,4,3)), 10)
+    val fst_example = (Map("x" -> 0, "y" -> 100), ("x", "y", List(1,2,3,4)), 1)
+    val snd_example = (Map("x" -> 0, "y" -> 100), ("x", "y", List(4,6,1,2,10,5)), 4)
+    val thd_example = (Map("x" -> 0, "y" -> 100), ("x", "y", List(10,9,8,7,6,5,4,3)), 10)
     val examples2 = List(fst_example, snd_example, thd_example)
     runSingleTestFromDirWithExamples("hints", "fstelement.syn", examples2)
   }
@@ -104,16 +104,16 @@ class HintsTest extends FunSpec with Matchers with SynthesisRunnerUtil {
   describe("Last element of Linked Lists parameterized by sets with complete input-output examples"){
     //x is starting memory address, y is ending memory address, and y -> 3
     // example takes the form of (sigma, input, output) where sigma is execution environment that maps variables to values, input and output are examples.
-    val fst_example = (Map("x" -> 0, "y" -> 10), ("x", "y", List(1,2,3,4)), 1)
-    val snd_example = (Map("x" -> 0, "y" -> 10), ("x", "y", List(4,6,1,2,10,5)), 4)
-    val thd_example = (Map("x" -> 0, "y" -> 10), ("x", "y", List(10,9,8,7,6,5,4,3)), 10)
+    val fst_example = (Map("x" -> 0, "y" -> 100), ("x", "y", List(1,2,3,4)), 1)
+    val snd_example = (Map("x" -> 0, "y" -> 100), ("x", "y", List(4,6,1,2,10,5)), 4)
+    val thd_example = (Map("x" -> 0, "y" -> 100), ("x", "y", List(10,9,8,7,6,5,4,3)), 10)
     val examples2 = List(fst_example, snd_example, thd_example)
     runSingleTestFromDirWithExamples("hints", "lastelement2.syn", examples2)
   }
   describe("First element of Linked Lists parameterized by sets with complete input-output examples"){
-    val fst_example = (Map("x" -> 0, "y" -> 10), ("x", "y", List(1,2,3,4)), 1)
-    val snd_example = (Map("x" -> 0, "y" -> 10), ("x", "y", List(4,6,1,2,10,5)), 4)
-    val thd_example = (Map("x" -> 0, "y" -> 10), ("x", "y", List(10,9,8,7,6,5,4,3)), 10)
+    val fst_example = (Map("x" -> 0, "y" -> 100), ("x", "y", List(1,2,3,4)), 1)
+    val snd_example = (Map("x" -> 0, "y" -> 100), ("x", "y", List(4,6,1,2,10,5)), 4)
+    val thd_example = (Map("x" -> 0, "y" -> 100), ("x", "y", List(10,9,8,7,6,5,4,3)), 10)
     val examples2 = List(fst_example, snd_example, thd_example)
     runSingleTestFromDirWithExamples("hints", "fstelement2.syn", examples2)
   }
