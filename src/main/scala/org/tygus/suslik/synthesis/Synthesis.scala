@@ -1,7 +1,8 @@
 package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.certification.CertTree
-import org.tygus.suslik.language.Expressions.{IntConst, SetLiteral, Var}
+import org.tygus.suslik.language.Expressions
+import org.tygus.suslik.language.Expressions.{BinaryExpr, IntConst, OpSetEq, SetLiteral, Var}
 import org.tygus.suslik.language.Statements.{Solution, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
@@ -246,8 +247,6 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         // * probably by keeping set of elements, then checking for introduction of new variables, then adding that to map.
         // ** try to extract this renaming info from the rule application (rather than calculating it every iteration)
         // think about how to even use the pre and post subst to determine whether or not to reject???
-        testPrintln("\n")
-
         // Suspend nodes with older and-siblings
         newNodes.foreach(n => {
           val idx = n.childIndex
@@ -304,10 +303,11 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           // keep track of GV and stuff like i was trying to do above.
           // is it because the substitutions need to update and keep track of the environment as the synthesis progresses???
           val e = examples(i)
+
           val prePure = currgoal.pre.phi.subst(e._1).subst(e._2).subst(e._3)
-          val postPure = currgoal.post.phi.subst(e._3)
-          val preSpatial = currgoal.pre.sigma.subst(e._1).subst(e._2)
-          val postSpatial = currgoal.post.sigma.subst(e._3)
+          val postPure = currgoal.post.phi.subst(e._3).subst(e._2).subst(e._1)
+          val preSpatial = currgoal.pre.sigma.subst(e._2).subst(e._3) //.subst(e._1) why doesn't adding examples of precond work here for last ele and fst ele2?
+          val postSpatial = currgoal.post.sigma.subst(e._3).subst(e._2).subst(e._1)
           //          val prePure = currgoal.pre.phi.subst(e._1).subst(e._2).subst(e._3)
           //          val postPure = currgoal.post.phi.subst(e._1).subst(e._2).subst(e._3)
           //          val preSpatial = currgoal.pre.sigma.subst(e._1).subst(e._2).subst(e._3)
@@ -326,7 +326,6 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           }
           catch{
             case _ =>
-
               new_goal_with_rule = r(goal)
           }
           if (new_goal_with_rule.isEmpty){
@@ -343,7 +342,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           testPrintln(s"Survived pruning: ${goal.pp}")
           val children = stats.recordRuleApplication(r.toString, r(goal))
 
-          if (children.isEmpty) {
+          if (children.isEmpty) { // this path is only taken by synthesis without examples. in synthesis with examples we handle this above.
             // Rule not applicable: try other rules
             log.print(List((s"$r FAIL", RESET)), isFail = true)
             applyRules(rs)
