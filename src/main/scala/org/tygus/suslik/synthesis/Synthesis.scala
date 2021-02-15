@@ -306,7 +306,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
 
           val prePure = currgoal.pre.phi.subst(e._1).subst(e._2).subst(e._3)
           val postPure = currgoal.post.phi.subst(e._3).subst(e._2).subst(e._1)
-          val preSpatial = currgoal.pre.sigma.subst(e._2).subst(e._3) //.subst(e._1) why doesn't adding examples of precond work here for last ele and fst ele2?
+          val preSpatial = currgoal.pre.sigma.subst(e._2).subst(e._3).subst(e._1) //.subst(e._1) why doesn't adding examples of precond work here for last ele and fst ele2?
           val postSpatial = currgoal.post.sigma.subst(e._3).subst(e._2).subst(e._1)
           //          val prePure = currgoal.pre.phi.subst(e._1).subst(e._2).subst(e._3)
           //          val postPure = currgoal.post.phi.subst(e._1).subst(e._2).subst(e._3)

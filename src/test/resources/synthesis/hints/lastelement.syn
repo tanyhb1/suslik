@@ -1,7 +1,7 @@
 should be able to retrieve last element with help of complete examples
 ###
 
-{true ; ret :-> x ** lsegs(x, tl, S)}
+{true /\ x1 == x; ret :-> x1 ** lsegs(x1, tl, S)}
   void lstElement(loc ret, loc tl)
 {true; ret :-> tl ** lsegs(tl, tl, Semp) }
 

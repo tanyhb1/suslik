@@ -12,11 +12,12 @@ returns
 void list_copy(loc x)
 
 {true ; lseg(x, 0, S1)}
+introduce substitution of examples into the pure part?
 #######
 
-{S1 =i {v} ++ S ; ret :-> x **  [x,2] ** x :-> v ** (x+1) :-> nxt ** lseg(nxt, 0, S)}
+{S1 =i {v} ++ S /\ x1 == x /\ v1 == v ; ret :-> x1 **  [x1,2] ** x1:-> v1 ** (x1+1) :-> nxt ** lseg(nxt, 0, S)}
 void fstelement2(loc ret)
-{true ;  ret :-> v ** lseg(x, 0, S1)}
+{true ;  ret :-> v1 ** lseg(x1, 0, S1)}
 
 ######
 // ret points to the head of the SLL, hd points to the second element of the SLL (represented as lsegs)
