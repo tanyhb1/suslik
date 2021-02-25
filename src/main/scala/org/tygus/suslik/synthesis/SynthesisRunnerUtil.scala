@@ -10,6 +10,7 @@ import org.tygus.suslik.logic.Preprocessor._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.parsing.SSLParser
 import org.tygus.suslik.report._
+import org.tygus.suslik.synthesis.Evaluator.Examples
 import org.tygus.suslik.synthesis.SearchTree.AndNode
 import org.tygus.suslik.synthesis.tactics._
 import org.tygus.suslik.util._
@@ -50,7 +51,7 @@ trait SynthesisRunnerUtil {
 
   def doRunWithExamples(testname: String, desc: String, in: String, out: String,
                         params: SynConfig = defaultConfig,
-                        examples: List[(Map[String, Int], (String, String, List[Int]) , Int)]) = {
+                        examples: Examples) = {
     LanguageUtils.resetFreshNameGenerator()
   }
   def getDescInputOutput(testFilePath: String, initialParams: SynConfig = defaultConfig): (String, String, String, String, SynConfig) = {
@@ -138,7 +139,7 @@ trait SynthesisRunnerUtil {
 
   }
   def synthesizeFromSpecWithExamples(testName: String, text: String, out: String = noOutputCheck, params: SynConfig = defaultConfig,
-                                    examples : Option[List[(Map[String, Int], (String, String, List[Int]) , Int)]])
+                                    examples : Option[Examples])
   {
     import log.out.testPrintln
     testPrintln(examples.toString)
@@ -311,6 +312,36 @@ trait SynthesisRunnerUtil {
       }
     }
   }
+  def runSingleTestFromDirWithExamples(dir: String, fname: String, params: SynConfig = defaultConfig, examples: Examples) {
+    var testDir = new File(dir)
+    if (!testDir.exists()) {
+      val path = List(rootDir, dir).mkString(File.separator)
+      println(s"Trying the path $path")
+      testDir = new File(path)
+      if (!testDir.exists()) {
+        System.err.println(s"Found no directory $dir.")
+        return
+      }
+    }
+    if (testDir.exists() && testDir.isDirectory) {
+      // Maybe create log file (depending on params)
+      SynStatUtil.init(params)
+      // Get definitions
+      val defs = getDefs(testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$defExtension")).toList)
+      // Get specs
+      val tests = testDir.listFiles.filter(f => f.isFile
+        && (f.getName.endsWith(s".$testExtension") ||
+        f.getName.endsWith(s".$sketchExtension"))).toList
+      tests.find(f => f.getName == fname) match {
+        case Some(f) =>
+          val (testName, desc, in, out, allParams) = getDescInputOutput(f.getAbsolutePath, params)
+          val fullInput = List(defs, in).mkString("\n")
+          doRunWithExamples(testName, desc, fullInput, out, allParams, examples)
+        case None =>
+          System.err.println(s"No file with the name $fname found in the directory $dir.")
+      }
+    }
+  }
   def runSingleTestFromDirWithHints(dir: String, fname: String, params: SynConfig = defaultConfig) {
     var testDir = new File(dir)
     if (!testDir.exists()) {
@@ -342,38 +373,7 @@ trait SynthesisRunnerUtil {
     }
   }
 
-  def runSingleTestFromDirWithExamples(dir: String, fname: String,
-                                       examples : List[(Map[String, Int], (String, String, List[Int]) , Int)],
-                                       params: SynConfig = defaultConfig) {
-    var testDir = new File(dir)
-    if (!testDir.exists()) {
-      val path = List(rootDir, dir).mkString(File.separator)
-      println(s"Trying the path $path")
-      testDir = new File(path)
-      if (!testDir.exists()) {
-        System.err.println(s"Found no directory $dir.")
-        return
-      }
-    }
-    if (testDir.exists() && testDir.isDirectory) {
-      // Maybe create log file (depending on params)
-      SynStatUtil.init(params)
-      // Get definitions
-      val defs = getDefs(testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$defExtension")).toList)
-      // Get specs
-      val tests = testDir.listFiles.filter(f => f.isFile
-        && (f.getName.endsWith(s".$testExtension") ||
-        f.getName.endsWith(s".$sketchExtension"))).toList
-      tests.find(f => f.getName == fname) match {
-        case Some(f) =>
-          val (testName, desc, in, out, allParams) = getDescInputOutput(f.getAbsolutePath, params)
-          val fullInput = List(defs, in).mkString("\n")
-          doRunWithExamples(testName, desc, fullInput, out, allParams, examples)
-        case None =>
-          System.err.println(s"No file with the name $fname found in the directory $dir.")
-      }
-    }
-  }
+
 
 
   def removeSuffix(s: String, suffix: String): String = {

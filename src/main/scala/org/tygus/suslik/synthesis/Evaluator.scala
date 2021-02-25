@@ -1,17 +1,14 @@
 package org.tygus.suslik.synthesis
 import org.tygus.suslik.language.Expressions._
-import org.tygus.suslik.language.SSLType
 import org.tygus.suslik.language.Statements._
-import org.tygus.suslik.logic.{Block, Heaplet, PFormula, PointsTo, SApp, SFormula}
 import org.tygus.suslik.logic.Specifications.Assertion
-
-import scala.collection.immutable.{SortedSet, TreeSet}
 object Evaluator {
   case class EvalResult(result: Assertion,
                         store: Map[Var, Expr]
                        )
 
   type Heap = Map[Int, Expr]
+  type Examples = List[(Subst, Heap, Heap)]
   // we let memory chunk size = 1 for now... this depends on unit concerned
   // typically addresses are stored in chunks of 8bits/1byte/multiples of 8
   val MEMORY_CHUNK_SIZE = 1
@@ -20,7 +17,16 @@ object Evaluator {
       case IntConst(x) => x
       case _ => throw new Exception("error")
     }
-
+  }
+  def resolveHeap(heap: Heap, store:Subst): Heap = {
+    var  newHeap: Heap = Map()
+    heap.foreach( item =>
+      {
+        val (k,v) = item
+        newHeap += (k -> v.subst(store))
+      }
+    )
+    newHeap
   }
   def evaluate(s: Statement, heap: Heap, store: Subst): (Heap, Subst)= {
     s match {
@@ -66,6 +72,35 @@ object Evaluator {
         }
         (new_heap, store)
       }
+      case If(cond, tb , eb) => {
+        val b =
+          cond match {
+          case BinaryExpr(op, left, right) =>
+            val l = left.subst(store)
+            val r = right.subst(store)
+            val bool_res: Boolean = op match {
+              case OpEq => l == r
+              case OpLt => l < r
+              case OpLeq => l <= r
+              case _ => throw new Exception("not supposed to happen")
+            }
+            bool_res
+          case _ => throw new Exception("Not supposed to happen")
+        }
+        if (b) {
+          evaluate(tb, heap, store)
+        } else {
+          evaluate(eb, heap, store)
+        }
+      }
+      case Guarded(cond, body, els, branchPoint) => {
+        ???
+      }
+      case Call(fun, args, companion) => {
+        ???
+      }
+      case Hole =>
+        (Map.empty, Map.empty)
       case Error =>
         (Map.empty, Map.empty)
     }

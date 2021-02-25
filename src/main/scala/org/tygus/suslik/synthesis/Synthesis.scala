@@ -2,7 +2,7 @@ package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.certification.CertTree
 import org.tygus.suslik.language.Expressions
-import org.tygus.suslik.language.Expressions.{BinaryExpr, IntConst, OpSetEq, SetLiteral, Var}
+import org.tygus.suslik.language.Expressions.{BinaryExpr, IntConst, OpSetEq, SetLiteral, Subst, Var}
 import org.tygus.suslik.language.Statements.{Solution, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
@@ -10,6 +10,7 @@ import org.tygus.suslik.logic.smt.{CyclicProofChecker, SMTSolving}
 import org.tygus.suslik.report.{Log, ProofTrace}
 import org.tygus.suslik.synthesis.Memoization._
 import org.tygus.suslik.synthesis.SearchTree._
+import org.tygus.suslik.synthesis.Evaluator._
 import org.tygus.suslik.synthesis.Termination._
 import org.tygus.suslik.synthesis.rules.DelegatePureSynthesis
 import org.tygus.suslik.synthesis.tactics.Tactic
@@ -30,7 +31,7 @@ import scala.collection.mutable
 class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: ProofTrace ) extends SepLogicUtils {
   import log.out.testPrintln
   def synthesizeProc(funGoal: FunSpec, env: Environment, sketch: Statement,
-                     examples:Option[List[(Map[String, Int], (String, String, List[Int]) , Int)]]):
+                     examples:Option[Examples]):
   (List[Procedure], SynStats) = {
     implicit val config: SynConfig = env.config
     implicit val stats: SynStats = env.stats
@@ -69,62 +70,19 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     }
   }
 
-  protected def synthesize(goal: Goal, examples:Option[List[(Map[String, Int], (String, String, List[Int]) , Int)]])
+  protected def synthesize(goal: Goal, examples:Option[Examples])
                           (stats: SynStats): (Option[Solution] ) = {
     // initialize goal as an OrNode
 
-
-    val preSpatial = goal.pre.sigma
-    val prePure = goal.pre.phi
-    val postSpatial = goal.post.sigma
-    val postPure = goal.post.phi
-    val has_examples = examples match {
-      case Some(_) => true
-      case None => false
-    }
-    if (has_examples){
-      val ret_binding = postSpatial.ptss match {
-        case retPointsTo::Nil=> Some(retPointsTo.value, retPointsTo.loc) // for ret -> v, return Some(v, ret)
-        case _ =>
-          testPrintln("currently only forcing there to be one ret value")
-          None
-      }
-      val examples_parsed = examples match {
-        case Some(ls) => ls.map(x => (x._1.toList.map(y => (Var(y._1), IntConst(y._2))).toMap,
-          x._2._3.map(y=> IntConst(y)), IntConst(x._3)))
-        case None => ???
-      }
-      // find out how to make this get the LHS set instead of the RHS but lets cheat for now
-      val set_binding = preSpatial.apps.head.args.last.asInstanceOf[Var] match {
-        case Var(x) => Var(x+'1')
-      }
-      val set_bind = prePure.-(set_binding).conjuncts
-      val curr_ghosts = goal.ghosts
-      val new_examples = examples_parsed.map(x=> (x._1 ,
-        Map(set_binding -> SetLiteral(x._2)), Map(ret_binding.get._1.asInstanceOf[Var] -> x._3), curr_ghosts))
-//      val used_variables = new_examples.map(x=>
-//        goal.pre.ghosts(x._1.keySet.union(x._2.keySet).union(x._3.keySet)).union(
-//          goal.post.ghosts(x._1.keySet.union(x._2.keySet).union(x._3.keySet))))
-
-      init(goal)
-
-      // take original pre and post, create example worlds by subst. the vars with concrete values and then run the synthesizer?
-      // alternatively, at every subgoal, we want to extract out goal information, and then subst with concrete values and evaluate
-      // that they are satisfied, else backtrack? but isn't this a more labor intensive way of doing what we do in the first method?
-      // process work list which is a singleton containing OrNode(goal)
-      processWorkList(stats, goal.env.config, Some(new_examples))
-    } else {
-      init(goal)
-      processWorkList(stats, goal.env.config, None)
-    }
+    init(goal)
+    processWorkList(stats, goal.env.config, examples)
 
   }
 
   @tailrec final def processWorkList(implicit
                                      stats: SynStats,
                                      config: SynConfig,
-                                     examples:Option[List[(Map[Var, IntConst],
-                                       (Map[Var,SetLiteral]) , Map[Var,IntConst], Set[Var])]]): (Option[Solution] ) = {
+                                     examples:Option[Examples]): (Option[Solution] ) = {
     // Check for timeouts
     if (!config.interactive && stats.timedOut) {
       throw SynTimeOutException(s"\n\nThe derivation took too long: more than ${config.timeOut} seconds.\n")
@@ -154,7 +112,9 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           log.print(List((s"Recalled solution ${sol._1.pp}", RED)))
           trace.add(node.id, Succeeded(sol), Some("cache"))
           worklist = addNewNodes(Nil)
-          node.succeed(sol)
+          val x = node.succeed(sol)
+          testPrintln(s"AFV ${x}")
+          x
         }
         case Some(Expanded) => { // Same goal has been expanded before: wait until it's fully explored
           log.print(List(("Suspend", RED)))
@@ -162,12 +122,44 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           worklist = addNewNodes(List(node))
           None
         }
-        case None => expandNode(node, addNewNodes, examples) // First time we see this goal: do expand
+        case None =>
+          // First time we see this goal: do expand
+          log.print(List(("EXPAND", RED)))
+          expandNode(node, addNewNodes, examples) match {
+            case Some((s, e)) =>
+              examples match {
+                case Some(eg) =>
+                  log.print(List(("EVALUATING EXAMPLES", RED)))
+                  val pass = evaluateSolution(Some(s), eg)
+                  if (pass){
+                    log.print(List(("Success la", RED)))
+                    node.succeed(e.producer(Nil))
+                  } else {
+                    node.fail
+                    None
+                  }
+                case None =>
+                  Some(s)
+              }
+            case None =>
+              log.print(List(("NO EXPANSION", YELLOW)))
+              None
+          }
+//          examples match {
+//            case Some(eg) =>
+//              val pass = evaluateSolution(Some(sol), eg)
+//              if (pass){
+//                node.succeed(e.producer(Nil))
+//              } else {
+//          }
       }
+
       res match {
-        case None => processWorkList //solveSubGoals
-        case sol => {
-          (sol)
+        case None =>
+          testPrintln(s"${worklist.map(x => x.goal.pp )}")
+          processWorkList //solveSubGoals
+        case Some(sol) => {
+          Some(sol)
         }
       }
     }
@@ -192,17 +184,12 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
 
   // Expand node and return either a new worklist or the final solution
   protected def expandNode(node: OrNode, addNewNodes: List[OrNode] => List[OrNode],
-                           examples: Option[List[(Map[Var, IntConst], (Map[Var, SetLiteral]) ,
-                             Map[Var, IntConst], Set[Var])]])
-                          (implicit stats: SynStats, config: SynConfig): Option[Solution] = {
+                           examples: Option[Examples])
+                          (implicit stats: SynStats, config: SynConfig): Option[(Solution, RuleResult)] = {
     val goal = node.goal
 
     memo.save(goal, Expanded)
     implicit val ctx = log.Context(goal)
-    examples match {
-      case Some(e) => testPrintln(e.toString())
-      case None => ()
-    }
     // Apply all possible rules to the current goal to get a list of alternative expansions,
     // each of which can have multiple open subgoals
     // rules are any phased rules since our sketch is a Hole and we set phased config to true.
@@ -215,21 +202,18 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     // returns the first instance where predicate is satisfied for res
     expansions.find(res => res.subgoals.isEmpty) match {
       case Some(e) =>
-        if (config.certTarget != null) {
-          // [Certify]: Add a terminal node and its ancestors to the certification tree
-          CertTree.addSuccessfulPath(node, e)
-        }
         // if an expansion is a terminal, then we add that expansion to successLeaves,
         // update our worklist, and set it to node.succeed, which further prunes the worklist
         // and checks if our expansion begins from the root. If so, then it is the solution to the goal, and we return it.
         // otherwise, it is simply a solution to a subgoal, so we continue this process, taking care to memoize.
+        if (config.certTarget != null) {
+          // [Certify]: Add a terminal node and its ancestors to the certification tree
+          CertTree.addSuccessfulPath(node, e)
+        }
         trace.add(e, node)
         successLeaves = node :: successLeaves
         worklist = addNewNodes(Nil)
-        val sol = node.succeed(e.producer(Nil))
-        sol
-      case None => { // no terminals: add all expansions to worklist
-        // Create new nodes from the expansions
+        val (sol, ls) = node.retrieveSolution(e.producer(Nil), List())
         val newNodes = for {
           (e, i) <- expansions.zipWithIndex
           andNode = AndNode(i +: node.id, node, e)
@@ -241,12 +225,6 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           val extraCost = if (j == -1) 0 else e.subgoals.drop(j + 1).map(_.cost).sum
           OrNode(j +: andNode.id, g, Some(andNode), node.extraCost + extraCost)
         }
-
-        //think about how to propagate the map forward (update the environment since variable names
-        // change as we traverse the worklist (i.e., x -> x2)
-        // * probably by keeping set of elements, then checking for introduction of new variables, then adding that to map.
-        // ** try to extract this renaming info from the rule application (rather than calculating it every iteration)
-        // think about how to even use the pre and post subst to determine whether or not to reject???
         // Suspend nodes with older and-siblings
         newNodes.foreach(n => {
           val idx = n.childIndex
@@ -254,14 +232,46 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
             val sib = newNodes.find(s => s.parent == n.parent && s.childIndex == idx - 1).get
             log.print(List((s"Suspending ${n.pp()} until ${sib.pp()} succeeds", RED)))
             memo.suspendSibling(n, sib) // always process the left and-goal first; unsuspend next once it succeeds
+
           }
         })
         worklist = addNewNodes(newNodes.toList)
-        testPrintln(s"current worklist of size ${worklist.length}")
-        for (x <- worklist){
-          testPrintln(x.goal.pp)
+
+        if (newNodes.isEmpty) {
+          // This is a dead-end: prune worklist and try something else
+          log.print(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
+          trace.add(node.id, Failed)
+          node.fail
+        } else {
+          stats.addGeneratedGoals(newNodes.size)
         }
-        testPrintln("\n")
+        Some((sol,e))
+
+
+      case None => { // no terminals: add all expansions to worklist
+        val newNodes = for {
+          (e, i) <- expansions.zipWithIndex
+          andNode = AndNode(i +: node.id, node, e)
+          if isTerminatingExpansion(andNode) // termination check
+          nSubs = e.subgoals.size; () = trace.add(andNode, nSubs)
+          (g, j) <- if (nSubs == 1) List((e.subgoals.head, -1)) // this is here only for logging
+          else e.subgoals.zipWithIndex
+        } yield {
+          val extraCost = if (j == -1) 0 else e.subgoals.drop(j + 1).map(_.cost).sum
+          OrNode(j +: andNode.id, g, Some(andNode), node.extraCost + extraCost)
+        }
+        // Suspend nodes with older and-siblings
+        newNodes.foreach(n => {
+          val idx = n.childIndex
+          if (idx > 0) {
+            val sib = newNodes.find(s => s.parent == n.parent && s.childIndex == idx - 1).get
+            log.print(List((s"Suspending ${n.pp()} until ${sib.pp()} succeeds", RED)))
+            memo.suspendSibling(n, sib) // always process the left and-goal first; unsuspend next once it succeeds
+
+          }
+        })
+        worklist = addNewNodes(newNodes.toList)
+
         if (newNodes.isEmpty) {
           // This is a dead-end: prune worklist and try something else
           log.print(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
@@ -272,6 +282,26 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         }
         None
       }
+    }
+  }
+
+  protected def evaluateSolution(solution: Option[Solution], examples: Examples) (implicit stats: SynStats, config: SynConfig): Boolean = {
+    solution match {
+      case Some(sol) =>
+        var pass = true
+        for (eg <- examples){
+          val (store, init_heap, fin_heap) = eg
+          val (output_heap, output_store) = evaluate(sol._1, init_heap, store)
+          val resolved_heap = resolveHeap(output_heap, output_store)
+          testPrintln(s"curr heap is  ${resolved_heap} while expected heap is ${fin_heap} ")
+          testPrintln(s"with solution ${sol._1}")
+          log.print(List((s"curr heap is ${resolved_heap} while expected heap is ${fin_heap}", RED)))
+          if (resolved_heap != fin_heap){
+            pass = false
+          }
+        }
+        pass
+      case None => false
     }
   }
 
@@ -286,81 +316,40 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
                                                        stats: SynStats,
                                                        config: SynConfig,
                                                        ctx: log.Context,
-                                                       examples_opt : Option[List[(Map[Var, IntConst], (Map[Var, SetLiteral]) ,
-                                                         Map[Var, IntConst], Set[Var])]]): Seq[RuleResult] = {
+                                                       examples_opt : Option[Examples]): Seq[RuleResult] = {
     implicit val goal: Goal = node.goal
-    val currgoal = node.goal
     rules match {
       case Nil => Vector() // No more rules to apply: done expanding the goal
       case r :: rs =>
         // Invoke the rule (application of the rule occurs here)
         // successful result = one or more alternative sub-derivations
         // sub-derivations are just a pair (x,y) where x are zero or more sub-goals to be solved and y is the continuation to form the solution
-        var tmp = true
-        var i = 0
-        val examples = examples_opt.getOrElse(List())
-        while (tmp && i < examples.length) {
-          // keep track of GV and stuff like i was trying to do above.
-          // is it because the substitutions need to update and keep track of the environment as the synthesis progresses???
-          val e = examples(i)
+        val children = stats.recordRuleApplication(r.toString, r(goal))
 
-          val prePure = currgoal.pre.phi.subst(e._1).subst(e._2).subst(e._3)
-          val postPure = currgoal.post.phi.subst(e._3).subst(e._2).subst(e._1)
-          val preSpatial = currgoal.pre.sigma.subst(e._2).subst(e._3).subst(e._1) //.subst(e._1) why doesn't adding examples of precond work here for last ele and fst ele2?
-          val postSpatial = currgoal.post.sigma.subst(e._3).subst(e._2).subst(e._1)
-          //          val prePure = currgoal.pre.phi.subst(e._1).subst(e._2).subst(e._3)
-          //          val postPure = currgoal.post.phi.subst(e._1).subst(e._2).subst(e._3)
-          //          val preSpatial = currgoal.pre.sigma.subst(e._1).subst(e._2).subst(e._3)
-          //          val postSpatial = currgoal.post.sigma.subst(e._1).subst(e._2).subst(e._3)
-          testPrintln(s"MapPre: ${e._1} \n MapSet:${e._2} \n MapPost: ${e._3} \n " +
-            s"PreSpatialSubst: ${preSpatial.pp} \n PostSpatialSubst: ${postSpatial.pp}\n " +
-            s"PrePureSubst: ${prePure.pp} \n PostPureSubst: ${postPure.pp}\n " +
-            s"Rule: ${r}" )
-          val new_goal = goal match {
-            case Goal(pre, post, gamma, pv, ug, fn, lbl, parent,env,sketch,cg) =>
-              Goal(Assertion(prePure, preSpatial), Assertion(postPure, postSpatial), gamma, pv, ug, fn, lbl, parent,env,sketch,cg)
-          }
-          var new_goal_with_rule : Seq[RuleResult] = Seq()
-          try {
-            new_goal_with_rule = r(new_goal)
-          }
-          catch{
-            case _ =>
-              new_goal_with_rule = r(goal)
-          }
-          if (new_goal_with_rule.isEmpty){
-            testPrintln("the above failed \n")
-            tmp = false
-          }
-          i += 1
-        }
-        if (!tmp) {
-          testPrintln("Trying new rule... \n")
+        if (children.isEmpty) { // this path is only taken by synthesis without examples. in synthesis with examples we handle this above.
+          // Rule not applicable: try other rules
+          log.print(List((s"$r FAIL", RESET)))
           applyRules(rs)
-        }
-        else {
-          testPrintln(s"Survived pruning: ${goal.pp}")
-          val children = stats.recordRuleApplication(r.toString, r(goal))
+        } else {
+          // Rule applicable: try all possible sub-derivation
+          val childFootprints = children.map(log.showChildren(goal))
+          log.print(List((s"$r (${children.size}): ${childFootprints.head}", RESET)))
+          for {c <- childFootprints.tail}
+            log.print(List((s" <|>  $c", CYAN)))
 
-          if (children.isEmpty) { // this path is only taken by synthesis without examples. in synthesis with examples we handle this above.
-            // Rule not applicable: try other rules
-            log.print(List((s"$r FAIL", RESET)), isFail = true)
-            applyRules(rs)
-          } else {
-            // Rule applicable: try all possible sub-derivation
-            val childFootprints = children.map(log.showChildren(goal))
-            log.print(List((s"$r (${children.size}): ${childFootprints.head}", RESET)))
-            for {c <- childFootprints.tail}
-              log.print(List((s" <|>  $c", CYAN)))
-            if (r.isInstanceOf[InvertibleRule]) { // optimization
-              // The rule is invertible: do not try other rules on this goal
-              children
-            } else {
-              // Both this and other rules apply
-              children ++ applyRules(rs)
-            }
-          }
+
+          /**
+            *  Let's just try every rule regardless, for now.
+            */
+            children ++ applyRules(rs)
+//          if (r.isInstanceOf[InvertibleRule]) { // optimization
+//            // The rule is invertible: do not try other rules on this goal
+//            children
+//          } else {
+//            // Both this and other rules apply
+//            children ++ applyRules(rs)
+//          }
         }
-    }
+     }
   }
 }

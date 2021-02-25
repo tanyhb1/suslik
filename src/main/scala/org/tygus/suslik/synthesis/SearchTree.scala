@@ -7,6 +7,7 @@ import org.tygus.suslik.synthesis.Termination.Transition
 import org.tygus.suslik.synthesis.rules.Rules.{RuleResult, SynthesisRule}
 import org.tygus.suslik.util.SynStats
 
+
 /**
   * And-or tree that represents the space of all possible derivations
   */
@@ -49,6 +50,7 @@ object SearchTree {
         // this node cannot be the root, because label.lengh > l.length
         case Some(p) => p.hasAncestor(l)
         case _ => false
+
       }
 
     // Replace the ancestor labeled l with newAN
@@ -81,7 +83,8 @@ object SearchTree {
       memo.save(goal, Succeeded(s))
       successLeaves = successLeaves.filterNot(n => this.isFailedDescendant(n))  // prune members of partially successful branches
       parent match {
-        case None => Some(s) // this is the root: synthesis succeeded
+        case None =>
+          Some(s) // this is the root: synthesis succeeded
         case Some(an) => { // a subgoal has succeeded
           worklist = pruneDescendants(id, worklist) // prune all my descendants from worklist
           val newAN = an.copy(kont = an.kont.partApply(s)) // record solution in my parent
@@ -96,6 +99,25 @@ object SearchTree {
         }
       }
     }
+
+    def retrieveSolution(s: Solution, ls: List[AndNode])(implicit config: SynConfig): (Solution, List[AndNode]) = {
+      //memo.save(goal, Succeeded(s))
+      //successLeaves = successLeaves.filterNot(n => this.isFailedDescendant(n))  // prune members of partially successful branches
+      parent match {
+        case None => (s, ls) // this is the root: synthesis succeeded
+        case Some(an) => { // a subgoal has succeeded
+          //worklist = pruneDescendants(id, worklist) // prune all my descendants from worklist
+
+          val newAN = an.copy(kont = an.kont.partApply(s)) // record solution in my parent
+          //worklist = worklist.map(_.replaceAncestor(an.id, newAN)) // replace my parent in the tree
+          //successLeaves = successLeaves.map(_.replaceAncestor(an.id, newAN))
+          // Check if my parent has more open subgoals:
+          val new_ls = an :: ls
+          (newAN.parent.retrieveSolution(newAN.kont(List()), new_ls))
+        }
+      }
+    }
+
 
     // Worklist `wl` with all descendants of `ancestor` pruned
     private def pruneDescendants(ancestor: NodeId, wl: List[OrNode]): List[OrNode] = {
