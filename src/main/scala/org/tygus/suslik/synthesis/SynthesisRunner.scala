@@ -4,9 +4,8 @@ import java.io.File
 
 import org.tygus.suslik.certification.CertificationTarget
 import org.tygus.suslik.certification.targets._
-import org.tygus.suslik.language.Expressions.{IntConst, Subst, Var}
 import org.tygus.suslik.report.Log
-import org.tygus.suslik.synthesis.Evaluator.{Examples, Heap}
+import org.tygus.suslik.synthesis.Evaluator.Examples
 import org.tygus.suslik.util.SynLogLevels
 
 /**
@@ -97,15 +96,11 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
   private def handleInput(args: Array[String]): Unit = {
     val newConfig = RunConfig(SynConfig(), defaultFile)
-    val fst_example: (Subst, Heap, Heap) = (Map(Var("x") -> IntConst(100), Var("y") -> IntConst(200)),
-      Map(100 -> IntConst(43), 200 -> IntConst(239)),
-      Map(100 -> IntConst(43), 200 -> IntConst(43)))
     parser.parse(args, newConfig) match {
       case Some(RunConfig(synConfig, file)) =>
         val dir = getParentDir(file)
         val fName = new File(file).getName
-//        runSingleTestFromDir(dir, fName, synConfig)
-        runSingleTestFromDirWithExamples(dir, fName, synConfig,  List(fst_example))
+        runSingleTestFromDir(dir, fName, synConfig)
       case None =>
         System.err.println("Bad argument format.")
     }

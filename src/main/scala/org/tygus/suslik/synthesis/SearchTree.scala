@@ -1,6 +1,6 @@
 package org.tygus.suslik.synthesis
 
-import org.tygus.suslik.language.Statements.Solution
+import org.tygus.suslik.language.Statements.{Skip, Solution}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.synthesis.Memoization._
 import org.tygus.suslik.synthesis.Termination.Transition
@@ -100,20 +100,16 @@ object SearchTree {
       }
     }
 
-    def retrieveSolution(s: Solution, ls: List[AndNode])(implicit config: SynConfig): (Solution, List[AndNode]) = {
-      //memo.save(goal, Succeeded(s))
-      //successLeaves = successLeaves.filterNot(n => this.isFailedDescendant(n))  // prune members of partially successful branches
+    def retrieveSolution(s: Solution)(implicit config: SynConfig): (Solution) = {
       parent match {
-        case None => (s, ls) // this is the root: synthesis succeeded
+        case None => s // this is the root: synthesis succeeded
         case Some(an) => { // a subgoal has succeeded
-          //worklist = pruneDescendants(id, worklist) // prune all my descendants from worklist
-
           val newAN = an.copy(kont = an.kont.partApply(s)) // record solution in my parent
-          //worklist = worklist.map(_.replaceAncestor(an.id, newAN)) // replace my parent in the tree
-          //successLeaves = successLeaves.map(_.replaceAncestor(an.id, newAN))
-          // Check if my parent has more open subgoals:
-          val new_ls = an :: ls
-          (newAN.parent.retrieveSolution(newAN.kont(List()), new_ls))
+          try {
+            newAN.parent.retrieveSolution(newAN.kont(List()))
+          } catch {
+            case _ => newAN.parent.retrieveSolution((Skip, List()))
+          }
         }
       }
     }

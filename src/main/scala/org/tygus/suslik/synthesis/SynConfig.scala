@@ -28,7 +28,7 @@ case class SynConfig(
                       maxGuardConjuncts: Int = 2,
                       phased: Boolean = true,
                       depthFirst: Boolean = false,
-                      breadthFirst: Boolean = true,
+                      breadthFirst: Boolean = false,
                       //  hints
                       hints: Boolean = false,
                       // examples

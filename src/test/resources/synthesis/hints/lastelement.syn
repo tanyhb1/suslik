@@ -1,9 +1,9 @@
 should be able to retrieve last element with help of complete examples
 ###
 
-{true /\ x1 == x; ret :-> x1 ** lsegs(x1, tl, S)}
+{true; ret :-> x1 ** lsegs(x1, tl, S)}
   void lstElement(loc ret, loc tl)
-{true; ret :-> tl ** lsegs(tl, tl, Semp) }
+{true; ret :-> tl ** lsegs(tl, tl, {}) }
 
 ###
 // ret is pointer to hd of SLL
