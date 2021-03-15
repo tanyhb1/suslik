@@ -456,7 +456,14 @@ object Expressions {
 
     def getType(gamma: Gamma): Option[SSLType] = Some(IntType)
   }
+  case class HeapConst(value: Integer) extends Const(value) {
+    /**
+      * Let's have this instead of the dedicated Nil constructor
+      */
+    def isNull: Boolean = value == 0
 
+    def getType(gamma: Gamma): Option[SSLType] = Some(IntType)
+  }
   val NilPtr = IntConst(0)
 
   case class BoolConst(value: Boolean) extends Const(value) {

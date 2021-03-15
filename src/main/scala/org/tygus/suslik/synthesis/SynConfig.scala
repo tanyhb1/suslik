@@ -19,13 +19,13 @@ case object lexicographic extends TerminationMetric
 
 case class SynConfig(
                       // Synthesis params
-                      maxOpenDepth: Int = 1,
-                      maxCloseDepth: Int = 1,
-                      maxCalls: Int = 2,
+                      maxOpenDepth: Int = 5,
+                      maxCloseDepth: Int = 5,
+                      maxCalls: Int = 10,
                       auxAbduction: Boolean = true,
                       topLevelRecursion: Boolean = true,
                       branchAbduction: Boolean = false,
-                      maxGuardConjuncts: Int = 2,
+                      maxGuardConjuncts: Int = 5,
                       phased: Boolean = true,
                       depthFirst: Boolean = false,
                       breadthFirst: Boolean = false,

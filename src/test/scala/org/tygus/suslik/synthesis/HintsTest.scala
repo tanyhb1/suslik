@@ -1,8 +1,7 @@
 package org.tygus.suslik.synthesis
 
 import org.scalatest.{FunSpec, Matchers}
-import org.tygus.suslik.language.Expressions.{IntConst, Subst, Var}
-import org.tygus.suslik.synthesis.Evaluator.{Examples, Heap}
+import org.tygus.suslik.synthesis.Evaluator.Examples
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
@@ -79,12 +78,12 @@ class HintsTest extends FunSpec with Matchers with SynthesisRunnerUtil {
 //
 //    runSingleTestFromDirWithExamples("hints", "fstelement2.syn", examples2)
 //  }
-  describe("write 2"){
-    // Store; Input Heap; Output Heap
-    val fst_example: (Subst, Heap, Heap) = (Map(Var("x") -> IntConst(100), Var("y") -> IntConst(200)),
-      Map(100 -> IntConst(43), 200 -> IntConst(239)),
-      Map(100 -> IntConst(43), 200 -> IntConst(43)))
-    runSingleTestFromDirWithExamples("hints", "write2.syn", List(fst_example))
-  }
+//  describe("write 2"){
+//    // Store; Input Heap; Output Heap
+//    val fst_example: (Subst, Heap, Heap) = (Map(Var("x") -> IntConst(100), Var("y") -> IntConst(200)),
+//      Map(100 -> IntConst(43), 200 -> IntConst(239)),
+//      Map(100 -> IntConst(43), 200 -> IntConst(43)))
+//    runSingleTestFromDirWithExamples("hints", "write2.syn", List(fst_example))
+//  }
 
 }

@@ -2,7 +2,7 @@ package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.certification.CertTree
 import org.tygus.suslik.language.Expressions
-import org.tygus.suslik.language.Expressions.{BinaryExpr, IntConst, OpSetEq, SetLiteral, Subst, Var}
+import org.tygus.suslik.language.Expressions.{BinaryExpr, HeapConst, IntConst, OpSetEq, SetLiteral, Subst, Var}
 import org.tygus.suslik.language.Statements.{Solution, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
@@ -73,11 +73,16 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
   protected def synthesize(goal: Goal, examples:Option[Examples])
                           (stats: SynStats): (Option[Solution] ) = {
     // initialize goal as an OrNode
-    val examples: Examples = List((Map(Var("x") -> IntConst(100), Var("y") -> IntConst(200)),
-      Map(100 -> IntConst(43), 200 -> IntConst(239)),
-      Map(100 -> IntConst(43), 200 -> IntConst(43))))
+    val example_write2: Examples = List((Map(Var("x") -> HeapConst(100), Var("y") -> HeapConst(200)),
+      Map(100 -> HeapConst(43), 200 -> HeapConst(239)),
+      Map(100 -> HeapConst(43), 200 -> HeapConst(43))))
+
+    val example_fstelement2a: Examples =
+      List((Map(Var("ret") -> HeapConst(100), Var("x") -> HeapConst(200), Var("v") -> IntConst(1)),
+        Map(100 -> Var("x"), 200 -> Var("v") ),
+        Map(100 -> Var("v"), 200 -> Var("x"))))
     init(goal)
-    processWorkList(stats, goal.env.config, None)
+    processWorkList(stats, goal.env.config, Some(example_write2))
 
   }
 
@@ -127,13 +132,14 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           log.print(List(("EXPAND", RED)))
           examples match {
             case None =>
-              expandNode(node, addNewNodes)
+              expandNodeWithExamples(node, addNewNodes, None)
             case _ =>
               expandNodeWithExamples(node, addNewNodes, examples) match {
                 case Some(s) =>
                   examples match {
                     case Some(eg) =>
                       log.print(List(("EVALUATING EXAMPLES", RED)))
+                      log.print(List((s"Solution = ${s}", RED)))
                       val pass = evaluateSolution(Some(s), eg)
                       if (pass){
                         log.print(List(("Success", RED)))
@@ -179,84 +185,6 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
       val idx = worklist.indexOf(best)
       (best, worklist.take(idx) ++ _ ++ worklist.drop(idx + 1))
     }
-  protected def expandNode(node: OrNode, addNewNodes: List[OrNode] => List[OrNode])
-                          (implicit stats: SynStats, config: SynConfig): Option[Solution] = {
-    val goal = node.goal
-
-    memo.save(goal, Expanded)
-    implicit val ctx = log.Context(goal)
-
-    // Apply all possible rules to the current goal to get a list of alternative expansions,
-    // each of which can have multiple open subgoals
-    // rules are any phased rules since our sketch is a Hole and we set phased config to true.
-    val rules = tactic.nextRules(node)
-    //applyRules enumerates all possible sub-derivations obtained by applying the list of rules to our current node.
-    val allExpansions = applyRules(rules)(node, stats, config, ctx, None)
-    // no filtering is done for Phased strategy
-    val expansions = tactic.filterExpansions(allExpansions)
-    // Check if any of the expansions is a terminal
-    // returns the first instance where predicate is satisfied for res
-    expansions.find(res => res.subgoals.isEmpty) match {
-      case Some(e) =>
-        if (config.certTarget != null) {
-          // [Certify]: Add a terminal node and its ancestors to the certification tree
-          CertTree.addSuccessfulPath(node, e)
-        }
-        // if an expansion is a terminal, then we add that expansion to successLeaves,
-        // update our worklist, and set it to node.succeed, which further prunes the worklist
-        // and checks if our expansion begins from the root. If so, then it is the solution to the goal, and we return it.
-        // otherwise, it is simply a solution to a subgoal, so we continue this process, taking care to memoize.
-        trace.add(e, node)
-        successLeaves = node :: successLeaves
-        worklist = addNewNodes(Nil)
-        val sol = node.succeed(e.producer(Nil))
-        sol
-      case None => { // no terminals: add all expansions to worklist
-        // Create new nodes from the expansions
-        val newNodes = for {
-          (e, i) <- expansions.zipWithIndex
-          andNode = AndNode(i +: node.id, node, e)
-          if isTerminatingExpansion(andNode) // termination check
-          nSubs = e.subgoals.size; () = trace.add(andNode, nSubs)
-          (g, j) <- if (nSubs == 1) List((e.subgoals.head, -1)) // this is here only for logging
-          else e.subgoals.zipWithIndex
-        } yield {
-          val extraCost = if (j == -1) 0 else e.subgoals.drop(j + 1).map(_.cost).sum
-          OrNode(j +: andNode.id, g, Some(andNode), node.extraCost + extraCost)
-        }
-
-        //think about how to propagate the map forward (update the environment since variable names
-        // change as we traverse the worklist (i.e., x -> x2)
-        // * probably by keeping set of elements, then checking for introduction of new variables, then adding that to map.
-        // ** try to extract this renaming info from the rule application (rather than calculating it every iteration)
-        // think about how to even use the pre and post subst to determine whether or not to reject???
-        // Suspend nodes with older and-siblings
-        newNodes.foreach(n => {
-          val idx = n.childIndex
-          if (idx > 0) {
-            val sib = newNodes.find(s => s.parent == n.parent && s.childIndex == idx - 1).get
-            log.print(List((s"Suspending ${n.pp()} until ${sib.pp()} succeeds", RED)))
-            memo.suspendSibling(n, sib) // always process the left and-goal first; unsuspend next once it succeeds
-          }
-        })
-        worklist = addNewNodes(newNodes.toList)
-        testPrintln(s"current worklist of size ${worklist.length}")
-        for (x <- worklist){
-          testPrintln(x.goal.pp)
-        }
-        testPrintln("\n")
-        if (newNodes.isEmpty) {
-          // This is a dead-end: prune worklist and try something else
-          log.print(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
-          trace.add(node.id, Failed)
-          node.fail
-        } else {
-          stats.addGeneratedGoals(newNodes.size)
-        }
-        None
-      }
-    }
-  }
 
   // Expand node and return either a new worklist or the final solution
   protected def expandNodeWithExamples(node: OrNode, addNewNodes: List[OrNode] => List[OrNode],
@@ -304,9 +232,6 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         /**
           * TBA: Handle back-tracking in a more efficient manner by using continuations to keep track of the control-flow
           */
-        //        node.ruleHistory.head
-        //        node.ancestors.head
-
       case None => { // no terminals: add all expansions to worklist
          None
       }
@@ -358,11 +283,14 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         for (eg <- examples){
           val (store, init_heap, fin_heap) = eg
           val (output_heap, output_store) = evaluate(sol._1, init_heap, store)
-          val resolved_heap = resolveHeap(output_heap, output_store)
-          testPrintln(s"curr heap is  ${resolved_heap} while expected heap is ${fin_heap} ")
+          val resolved_testHeap = resolveHeap(output_heap, output_store)
+          val resolved_egHeap = resolveHeap(fin_heap, output_store)
+          testPrintln(s"curr heap is  ${resolved_testHeap} while expected heap is ${resolved_egHeap} ")
           testPrintln(s"with solution ${sol._1}")
-          log.print(List((s"curr heap is ${resolved_heap} while expected heap is ${fin_heap}", RED)))
-          if (resolved_heap != fin_heap){
+          testPrintln(s"with store ${output_store}")
+          log.print(List((s"curr heap is ${resolved_testHeap.toSet} while expected heap is ${resolved_egHeap.toSet}", RED)))
+          // check that example heap is a subset of the actual output heap
+          if (!(resolved_egHeap.toSet subsetOf resolved_testHeap.toSet)){
             pass = false
           }
         }
@@ -413,7 +341,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
                 // Both this and other rules apply
                 children ++ applyRules(rs)
               }
-            case Some(e) =>
+            case Some(_) =>
               children ++ applyRules(rs)
           }
 

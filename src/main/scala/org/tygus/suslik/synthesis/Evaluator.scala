@@ -14,7 +14,7 @@ object Evaluator {
   val MEMORY_CHUNK_SIZE = 1
   def retrieve(v: Var, store:Subst) : Int = {
     v.subst(store) match {
-      case IntConst(x) => x
+      case HeapConst(x) => x
       case _ => throw new Exception("error")
     }
   }
@@ -35,14 +35,20 @@ object Evaluator {
       case Load(to, tpe, from, offset) => {
         val from_as_address = from.subst(store)
         val value_at_from = from_as_address match {
-          case IntConst(x) => heap.get(x)
+          case HeapConst(x) => heap.get(x)
           case _ => throw new Exception("not supposed to happen")
         }
         to.subst(store) match {
-          case IntConst(x) =>
+          case HeapConst(x) =>
             val y = x+offset
             value_at_from match {
-              case Some(x) => (heap + (y -> x), store)
+              case Some(d) => (heap + (y -> d), store)
+              case None => throw new Exception("not supposed to happen")
+            }
+          case IntConst(a) =>
+            value_at_from match {
+              case Some(x) =>
+                (heap, store )
               case None => throw new Exception("not supposed to happen")
             }
           case Var(a) =>
@@ -55,7 +61,7 @@ object Evaluator {
       }
       case Store(to, offset, e) => {
         val to_as_address = to.subst(store) match {
-          case IntConst(x) => x+offset
+          case HeapConst(x) => x+offset
           case _ => ???
         }
         (heap + (to_as_address.asInstanceOf[Int] -> e),store)
@@ -68,7 +74,7 @@ object Evaluator {
         var new_heap = heap
         //using definition in Expressions that IntConst are null if they have value 0
         for(i <- 0 until sz){
-          new_heap = new_heap + (i+to_as_address -> IntConst(0) )
+          new_heap = new_heap + (i+to_as_address -> HeapConst(0) )
         }
         (new_heap, store)
       }
