@@ -82,7 +82,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         Map(100 -> Var("x"), 200 -> Var("v") ),
         Map(100 -> Var("v"), 200 -> Var("x"))))
     init(goal)
-    processWorkList(stats, goal.env.config, Some(example_write2))
+    processWorkList(stats, goal.env.config, Some(example_fstelement2a))
 
   }
 
@@ -219,14 +219,8 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         trace.add(e, node)
         successLeaves = node :: successLeaves
         worklist = addNewNodes(Nil)
-        examples match {
-          case Some(_) =>
-            val sol = node.retrieveSolution(e.producer(Nil))
-            Some(sol)
-          case None =>
-            val sol = node.succeed(e.producer(Nil))
-            sol
-        }
+        val sol = node.succeed(e.producer(Nil))
+        sol
 
 
         /**
