@@ -13,6 +13,7 @@ import org.tygus.suslik.synthesis.SearchTree._
 import org.tygus.suslik.synthesis.Evaluator._
 import org.tygus.suslik.synthesis.Termination._
 import org.tygus.suslik.synthesis.rules.DelegatePureSynthesis
+import org.tygus.suslik.synthesis.rules.OperationalRules.ReadRule
 import org.tygus.suslik.synthesis.tactics.Tactic
 import org.tygus.suslik.synthesis.rules.Rules._
 import org.tygus.suslik.util.SynStats
@@ -82,7 +83,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         Map(100 -> Var("x"), 200 -> Var("v") ),
         Map(100 -> Var("v"), 200 -> Var("x"))))
     init(goal)
-    processWorkList(stats, goal.env.config, Some(example_fstelement2a))
+    processWorkList(stats, goal.env.config, None)
 
   }
 
@@ -309,10 +310,13 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     rules match {
       case Nil => Vector() // No more rules to apply: done expanding the goal
       case r :: rs =>
+        val children = r match {
+          case ReadRule => stats.recordRuleApplication(r.toString, r(goal,examples_opt))
+          case _ => stats.recordRuleApplication(r.toString, r(goal))
+        }
         // Invoke the rule (application of the rule occurs here)
         // successful result = one or more alternative sub-derivations
         // sub-derivations are just a pair (x,y) where x are zero or more sub-goals to be solved and y is the continuation to form the solution
-        val children = stats.recordRuleApplication(r.toString, r(goal))
         if (children.isEmpty) { // this path is only taken by synthesis without examples. in synthesis with examples we handle this above.
           // Rule not applicable: try other rules
           log.print(List((s"$r FAIL", RESET)))

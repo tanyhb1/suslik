@@ -6,6 +6,7 @@ import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
+import org.tygus.suslik.synthesis.Evaluator.Examples
 import org.tygus.suslik.synthesis.Termination.Transition
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
@@ -21,7 +22,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
   val exceptionQualifier: String = "rule-unfolding"
 
   object Open extends SynthesisRule with GeneratesCode {
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     override def toString: Ident = "Open"
 
     def mkInductiveSubGoals(goal: Goal, h: Heaplet): Option[(Seq[(Expr, Goal)], Heaplet)] = {
@@ -72,7 +75,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
   }
 
   object AbduceCall extends SynthesisRule {
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     override def toString: Ident = "AbduceCall"
 
     def apply(goal: Goal): Seq[RuleResult] = {
@@ -101,7 +106,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
   }
 
   object CallRule extends SynthesisRule with GeneratesCode {
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     override def toString: Ident = "Call"
 
     def apply(goal: Goal): Seq[RuleResult] = {
@@ -171,7 +178,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
    */
   object Close extends SynthesisRule {
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     override def toString: Ident = "Close"
 
     def apply(goal: Goal): Seq[RuleResult] = {

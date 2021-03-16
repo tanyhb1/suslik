@@ -2,6 +2,7 @@ package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.logic._
+import org.tygus.suslik.synthesis.Evaluator.Examples
 import org.tygus.suslik.synthesis.StmtProducer
 import org.tygus.suslik.synthesis.Termination.Transition
 
@@ -29,9 +30,11 @@ object Rules {
     *
     * @author Ilya Sergey
     */
+
   abstract class SynthesisRule extends PureLogicUtils {
     // Apply the rule and get all possible sub-derivations
     def apply(goal: Goal): Seq[RuleResult]
+    def apply(goal: Goal, examples: Option[Examples]): Seq[RuleResult]
   }
 
   /**
@@ -44,6 +47,7 @@ object Rules {
 
   // This rule produces code
   trait GeneratesCode
+
 
   trait UnfoldingPhase {
     def heapletFilter(h: Heaplet): Boolean = {

@@ -4,6 +4,7 @@ import org.tygus.suslik.language.CardType
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
+import org.tygus.suslik.synthesis.Evaluator.Examples
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 
@@ -62,16 +63,24 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
 
   object HeapUnifyUnfolding extends HeapUnify with UnfoldingPhase {
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     override def toString: String = "HeapUnifyUnfold"
   }
 
   object HeapUnifyBlock extends HeapUnify with BlockPhase {
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     override def toString: String = "HeapUnifyBlock"
   }
 
   object HeapUnifyPointer extends HeapUnify with FlatPhase with InvertibleRule {
     override def toString: String = "HeapUnifyPointer"
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     override def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
       val post = goal.post
@@ -102,6 +111,9 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
   }
 
   object HeapUnifyPure extends HeapUnify with FlatPhase {
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     override def toString: String = "HeapUnifyPure"
   }
 
@@ -113,7 +125,9 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
   */
   object SubstRight extends SynthesisRule with InvertibleRule {
     override def toString: String = "SubstR"
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     def apply(goal: Goal): Seq[RuleResult] = {
       val p2 = goal.post.phi
       val s2 = goal.post.sigma
@@ -152,7 +166,9 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
   object Pick extends SynthesisRule {
     override def toString: String = "Pick"
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     def apply(goal: Goal): Seq[RuleResult] = {
       val constants = List(IntConst(0), SetLiteral(List()), BoolConst(true), BoolConst(false))
 
@@ -184,7 +200,9 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     */
   object PickCard extends SynthesisRule with InvertibleRule {
     override def toString: String = "PickCard"
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     def apply(goal: Goal): Seq[RuleResult] = {
       // If e is of the form lo < v, get lo
       def getLowerBound(e: Expr, v: Var): Option[Expr] = e match {
@@ -222,6 +240,9 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
    This strategy is incomplete, but it mimics our previous approach of not treating companion vars as existentials at all.
   */
   object PickArg extends SynthesisRule {
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     override def toString: String = "PickArg"
 
     def apply(goal: Goal): Seq[RuleResult] = {

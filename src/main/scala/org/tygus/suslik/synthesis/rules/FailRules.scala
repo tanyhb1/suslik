@@ -5,6 +5,7 @@ import org.tygus.suslik.language.IntType
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic._
+import org.tygus.suslik.synthesis.Evaluator.Examples
 import org.tygus.suslik.synthesis.Termination.Transition
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
@@ -23,7 +24,9 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   // Short-circuits failure if pure post is inconsistent with the pre
   object PostInconsistent extends SynthesisRule with InvertibleRule {
     override def toString: String = "PostInconsistent"
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre.phi
       val post = goal.post.phi
@@ -39,7 +42,9 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   // Short-circuits failure if universal part of post is too strong
   object CheckPost extends SynthesisRule with InvertibleRule {
     override def toString: String = "CheckPost"
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     def filterOutValidPost(goal: Goal, exPost: PFormula, uniPost: PFormula): Seq[RuleResult] = {
       val validExConjuncts = exPost.conjuncts.filter(c => SMTSolving.valid(goal.pre.phi ==> c))
       if (validExConjuncts.isEmpty && uniPost.conjuncts.isEmpty) Nil
@@ -62,7 +67,9 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
   object AbduceBranch extends SynthesisRule with GeneratesCode with InvertibleRule {
     override def toString: String = "AbduceBranch"
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     def atomCandidates(goal: Goal): Seq[Expr] =
       for {
         lhs <- goal.programVars.filter(goal.post.phi.vars.contains)
@@ -133,7 +140,9 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   // This rule is only applicable when only points-to heaplets are left
   object HeapUnreachable extends SynthesisRule with InvertibleRule {
     override def toString: String = "HeapUnreachable"
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     def apply(goal: Goal): Seq[RuleResult] = {
       assert(!(goal.hasPredicates() || goal.hasBlocks))
       if ((goal.pre.sigma.profile == goal.post.sigma.profile) && // profiles must match

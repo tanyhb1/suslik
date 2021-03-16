@@ -8,6 +8,7 @@ import org.tygus.suslik.language.Expressions.{IntConst, SetLiteral, Subst}
 import org.tygus.suslik.language._
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
 import org.tygus.suslik.logic.{PFormula, Specifications}
+import org.tygus.suslik.synthesis.Evaluator.Examples
 import org.tygus.suslik.synthesis.rules.Rules.{InvertibleRule, RuleResult, SynthesisRule}
 import org.tygus.suslik.synthesis.{ExistentialProducer, ExtractHelper, HandleGuard, IdProducer}
 
@@ -230,10 +231,16 @@ object DelegatePureSynthesis {
 
   object PureSynthesisFinal extends PureSynthesis(true) with InvertibleRule {
     override def toString: String = "PureSynthesisFinal"
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
   }
 
   object PureSynthesisNonfinal extends PureSynthesis(false) {
     override def toString: String = "PureSynthesisNonFinal"
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
   }
 
 }

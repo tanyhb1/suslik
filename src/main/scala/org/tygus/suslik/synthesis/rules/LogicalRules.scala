@@ -6,6 +6,7 @@ import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
+import org.tygus.suslik.synthesis.Evaluator.Examples
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 
@@ -30,7 +31,9 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   object EmpRule extends SynthesisRule with InvertibleRule {
 
     override def toString: Ident = "Emp"
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
       val post = goal.post
@@ -51,7 +54,9 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   */
   object Inconsistency extends SynthesisRule with InvertibleRule {
     override def toString: String = "Inconsistency"
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre.phi.toExpr
 
@@ -67,7 +72,9 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   */
   object WeakenPre extends SynthesisRule with InvertibleRule {
     override def toString: String = "WeakenPre"
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     def apply(goal: Goal): Seq[RuleResult] = {
       val unused = goal.pre.phi.indepedentOf(goal.pre.sigma.vars ++ goal.post.vars)
       if (unused.conjuncts.isEmpty) Nil
@@ -82,7 +89,9 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
   object SimplifyConditional extends SynthesisRule with InvertibleRule {
     override def toString: String = "Simplify"
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     def apply(goal: Goal): Seq[RuleResult] = {
       val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
       goal.post.sigma.chunks.find {
@@ -139,18 +148,30 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   }
 
   object FrameUnfolding extends Frame with UnfoldingPhase {
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     override def toString: String = "FrameUnfold"
   }
 
   object FrameUnfoldingFinal extends Frame with UnfoldingPhase with InvertibleRule {
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     override def toString: String = "FrameUnfold"
   }
 
   object FrameBlock extends Frame with BlockPhase with InvertibleRule {
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     override def toString: String = "FrameBlock"
   }
 
   object FrameFlat extends Frame with FlatPhase with InvertibleRule {
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     override def toString: String = "FrameFlat"
   }
 
@@ -164,7 +185,9 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
   object NilNotLval extends SynthesisRule with InvertibleRule {
     override def toString: String = "NilNotLval"
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     def apply(goal: Goal): Seq[RuleResult] = {
       if (goal.pre.phi == pFalse) return Nil
 
@@ -207,7 +230,9 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
    */
   object StarPartial extends SynthesisRule with InvertibleRule {
     override def toString: String = "*Partial"
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     def extendPure(p: PFormula, s: SFormula): PFormula = {
       val ptrs = (for (PointsTo(x, o, _) <- s.chunks) yield (o, x)).groupBy(_._1).mapValues(_.map(_._2))
       // All pairs of pointers
@@ -241,7 +266,9 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   */
   object SubstLeft extends SynthesisRule with InvertibleRule {
     override def toString: String = "SubstL"
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     def apply(goal: Goal): Seq[RuleResult] = {
       val p1 = goal.pre.phi
       val s1 = goal.pre.sigma

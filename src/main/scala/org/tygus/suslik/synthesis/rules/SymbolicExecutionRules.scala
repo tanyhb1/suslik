@@ -5,6 +5,7 @@ import org.tygus.suslik.language.{Statements, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
+import org.tygus.suslik.synthesis.Evaluator.Examples
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 
@@ -26,7 +27,9 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
   object GuidedWrite extends SynthesisRule with InvertibleRule {
 
     override def toString: Ident = "SE-Write"
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     def apply(goal: Goal): Seq[RuleResult] = goal.sketch.uncons match {
       case (cmd@Store(to, offset, new_val), rest) => { // the sketch is a store: apply the rule
         val pre = goal.pre
@@ -69,7 +72,9 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
   modify the goal's precondition to account for the load if possible
   */
   object GuidedRead extends SynthesisRule with InvertibleRule {
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     override def toString: Ident = "SE-Read"
 
     /* let to = *(from + offset)
@@ -121,7 +126,9 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
   */
   object GuidedAlloc extends SynthesisRule with InvertibleRule {
     val MallocInitVal = 666
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     override def toString: Ident = "SE-Alloc"
 
     def apply(goal: Goal): Seq[RuleResult] = goal.sketch.uncons match {
@@ -154,7 +161,9 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
   object GuidedFree extends SynthesisRule with InvertibleRule {
 
     override def toString: Ident = "SE-Free"
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     def findNamedHeaplets(goal: Goal, name:Var): Option[(Block, Seq[Heaplet])] = {
       // Heaplets have no ghosts
       def noGhosts(h: Heaplet): Boolean = h.vars.forall(v => goal.isProgramVar(v))
@@ -240,7 +249,9 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
   object Conditional extends SynthesisRule with InvertibleRule {
 
     override def toString: Ident = "SE-Cond"
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
 
     def apply(goal: Goal): Seq[RuleResult] = goal.sketch.uncons match {
       case (If(cond, tb, eb), Skip) => {
@@ -262,7 +273,9 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
   object Open extends SynthesisRule with InvertibleRule {
 
     override def toString: Ident = "SE-Open"
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     // Like the synthesis version of open,
     // but selects a single case, whose selector is implied by the precondition
     def apply(goal: Goal): Seq[RuleResult] = {

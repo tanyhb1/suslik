@@ -5,6 +5,7 @@ import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.{Statements, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
+import org.tygus.suslik.synthesis.Evaluator.Examples
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 
@@ -30,7 +31,9 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
   object WriteRule extends SynthesisRule with GeneratesCode with InvertibleRule {
 
     override def toString: Ident = "Write"
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
       val post = goal.post
@@ -75,17 +78,15 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
   object ReadRule extends SynthesisRule with GeneratesCode with InvertibleRule {
 
     override def toString: Ident = "Read"
-
-    def apply(goal: Goal): Seq[RuleResult] = {
+    def apply(goal: Goal, examples: Option[Examples]): Seq[RuleResult] = {
       val pre = goal.pre
       val post = goal.post
 
       def isGhostPoints: Heaplet => Boolean = {
         case PointsTo(x@Var(_), _, a@Var(_)) =>
-           !goal.isGhost(x) && goal.isGhost(a)
+          !goal.isGhost(x) && goal.isGhost(a)
         case _ => false
       }
-
       findHeaplet(isGhostPoints, goal.pre.sigma) match {
         case None => Nil
         case Some(PointsTo(x@Var(_), offset, a@Var(_))) =>
@@ -93,17 +94,46 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val tpy = goal.getType(a)
 
           val subGoal = goal.spawnChild(pre = pre.subst(a, y),
-                                        post = post.subst(a, y),
-                                        gamma = goal.gamma + (y -> tpy),
-                                        programVars = y :: goal.programVars)
+            post = post.subst(a, y),
+            gamma = goal.gamma + (y -> tpy),
+            programVars = y :: goal.programVars)
           val kont: StmtProducer = PrependProducer(Load(y, tpy, x, offset)) >> HandleGuard(goal) >> ExtractHelper(goal)
           List(RuleResult(List(subGoal), kont, this, goal))
         case Some(h) =>
           ruleAssert(false, s"Read rule matched unexpected heaplet ${h.pp}")
           Nil
       }
+
+    }
+    def apply(goal: Goal): Seq[RuleResult] = {
+      val pre = goal.pre
+      val post = goal.post
+
+      def isGhostPoints: Heaplet => Boolean = {
+        case PointsTo(x@Var(_), _, a@Var(_)) =>
+          !goal.isGhost(x) && goal.isGhost(a)
+        case _ => false
+      }
+      findHeaplet(isGhostPoints, goal.pre.sigma) match {
+        case None => Nil
+        case Some(PointsTo(x@Var(_), offset, a@Var(_))) =>
+          val y = generateFreshVar(goal, a.name)
+          val tpy = goal.getType(a)
+
+          val subGoal = goal.spawnChild(pre = pre.subst(a, y),
+            post = post.subst(a, y),
+            gamma = goal.gamma + (y -> tpy),
+            programVars = y :: goal.programVars)
+          val kont: StmtProducer = PrependProducer(Load(y, tpy, x, offset)) >> HandleGuard(goal) >> ExtractHelper(goal)
+          List(RuleResult(List(subGoal), kont, this, goal))
+        case Some(h) =>
+          ruleAssert(false, s"Read rule matched unexpected heaplet ${h.pp}")
+          Nil
+      }
+
     }
   }
+
 
   /*
   Alloc rule: allocate memory for an existential block
@@ -117,7 +147,9 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     override def toString: Ident = "Alloc"
 
     val MallocInitVal = 666
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     def findTargetHeaplets(goal: Goal): Option[(Block, Seq[Heaplet])] = {
       def isExistBlock: Heaplet => Boolean = {
         case Block(x@Var(_), _) => goal.isExistential(x)
@@ -173,7 +205,9 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       findBlockAndChunks(noGhosts, _ => true, goal.pre.sigma)
     }
-
+    def apply(goal: Goal, e:Option[Examples]) : Seq[RuleResult] ={
+      Seq()
+    }
     def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
 

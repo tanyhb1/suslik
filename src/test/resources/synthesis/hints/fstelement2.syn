@@ -1,14 +1,15 @@
 should be able to retrieve first element with help of complete examples, parameterized by set
 the first element of a SLL
 
-
-{S1 =i {v} ++ S ; ret :-> x **  [x,2] ** x:-> v ** (x+1) :-> nxt ** lseg(nxt, 0, S1)}
+prev def
+{true ; ret :-> x ** [x,2]  ** x :-> v ** (x+1) :-> nxt ** lseg(nxt, 0, S1)}
 void fstelement2(loc ret)
-{true ;  ret :-> v ** lseg(nxt, 0, S)}
+{true ;  ret :-> v ** lseg(x, 0, S)}
+
 
 #######
 
-{true ; ret :-> x ** [x,2]  ** x :-> v ** (x+1) :-> nxt ** lseg(nxt, 0, S1)}
+{true ;  ret :-> x ** lseg(x, 0, S)}
 void fstelement2(loc ret)
 {true ;  ret :-> v ** lseg(x, 0, S)}
 
