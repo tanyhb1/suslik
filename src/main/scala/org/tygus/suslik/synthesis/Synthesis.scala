@@ -81,9 +81,12 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     val example_fstelement2a: Examples =
       List((Map(Var("ret") -> HeapConst(100), Var("x") -> HeapConst(200), Var("v") -> IntConst(1)),
         Map(100 -> Var("x"), 200 -> Var("v") ),
-        Map(100 -> Var("v"), 200 -> Var("x"))))
+        Map(100 -> Var("v"), 200 -> Var("v"))))
+    testPrintln(s"test ${goal.pre.sigma}")
+    val test = exampleResolvedHeapToSFormula(resolveHeapLHS(example_fstelement2a.head._2, example_fstelement2a.head._1))
+    testPrintln(s"test2 ${test}")
     init(goal)
-    processWorkList(stats, goal.env.config, None)
+    processWorkList(stats, goal.env.config, Some(example_fstelement2a))
 
   }
 
@@ -285,7 +288,8 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           testPrintln(s"with store ${output_store}")
           log.print(List((s"curr heap is ${resolved_testHeap.toSet} while expected heap is ${resolved_egHeap.toSet}", RED)))
           // check that example heap is a subset of the actual output heap
-          if (!(resolved_egHeap.toSet subsetOf resolved_testHeap.toSet)){
+          if (!(resolved_egHeap.toSet subsetOf resolved_testHeap.toSet) || !(resolved_egHeap == resolved_testHeap)){
+            log.print(List((s"curr heap is ${resolved_testHeap.toSet} while expected heap is ${resolved_egHeap.toSet}", RED)))
             pass = false
           }
         }

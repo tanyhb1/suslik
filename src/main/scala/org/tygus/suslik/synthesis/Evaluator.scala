@@ -1,13 +1,17 @@
 package org.tygus.suslik.synthesis
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements._
+import org.tygus.suslik.logic.{Heaplet, PointsTo, SFormula}
 import org.tygus.suslik.logic.Specifications.Assertion
+
+import scala.collection.mutable.ListBuffer
 object Evaluator {
   case class EvalResult(result: Assertion,
                         store: Map[Var, Expr]
                        )
 
   type Heap = Map[Int, Expr]
+  type HeapE = Map[Expr, Expr]
   type Examples = List[(Subst, Heap, Heap)]
   // we let memory chunk size = 1 for now... this depends on unit concerned
   // typically addresses are stored in chunks of 8bits/1byte/multiples of 8
@@ -27,6 +31,39 @@ object Evaluator {
       }
     )
     newHeap
+  }
+  def resolveHeapLHS(heap:Heap, store:Subst):HeapE = {
+    var  newHeap: HeapE = Map()
+    heap.foreach( item =>
+    {
+      val (k,v) = item
+      for (e <- store){
+        val (c1,c2) = e
+        c2 match {
+          case IntConst(i) =>
+            if (i == k){
+              newHeap += (c1 -> v)
+            }
+          case HeapConst(i) =>
+            if (i == k){
+              newHeap += (c1 -> v)
+            }
+          case _ =>  throw new Exception("not supposed to happen")
+        }
+      }
+    }
+    )
+    newHeap
+  }
+  def exampleResolvedHeapToSFormula(eg:HeapE):SFormula = {
+    var sf = ListBuffer[Heaplet]()
+    eg.foreach(item => {
+      val (k,v) = item
+      val newPointsTo = PointsTo(k, 0, v)
+      sf += newPointsTo
+    }
+    )
+    SFormula(sf.toList)
   }
   def evaluate(s: Statement, heap: Heap, store: Subst): (Heap, Subst)= {
     s match {

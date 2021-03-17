@@ -9,7 +9,7 @@ void fstelement2(loc ret)
 
 #######
 
-{true ;  ret :-> x ** lseg(x, 0, S)}
+{true ; ret :-> x ** lseg(x, 0, S1)}
 void fstelement2(loc ret)
 {true ;  ret :-> v ** lseg(x, 0, S)}
 
