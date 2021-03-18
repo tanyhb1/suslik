@@ -2,6 +2,8 @@ should be able to synthesize a two-pointer arbitrary constant-assigning procedur
 ###
 {true; x :-> a ** y :-> b} void bar(loc x, loc y) {true ; y :-> z ** x :-> z}
 ###
+[x :-> a ** y :-> b ] [y :-> a ** x :-> a]
+###
 void bar (loc x, loc y) {
   *x = 43;
   *y = 239;

@@ -5,7 +5,7 @@ import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.{Statements, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
-import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.{PrependProducer, _}
 import org.tygus.suslik.synthesis.Evaluator._
 import org.tygus.suslik.synthesis.rules.Rules._
 
@@ -83,43 +83,64 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     def apply(goal: Goal, examples: Option[Examples]): Seq[RuleResult] = {
       val pre = goal.pre
       val post = goal.post
-
+      val init_pre = pre.sigma.chunks.toSet
       def isGhostPoints: Heaplet => Boolean = {
         case PointsTo(x@Var(_), _, a@Var(_)) =>
           !goal.isGhost(x) && goal.isGhost(a)
         case _ => false
       }
-      examples match  {
-        case None =>
-            apply(goal)
-        case Some(eg) =>
-          var ls = ListBuffer[RuleResult]()
-          for (e <- eg){
-            val store = e._1
-            val heap_fst = e._2
-            val exampleAsSFormula = exampleResolvedHeapToSFormula(resolveHeapLHS(heap_fst, store))
-            findHeaplet(isGhostPoints, exampleAsSFormula) match{
-              case None => ()
-              case Some(PointsTo(x@Var(_), offset, a@Var(_))) =>
-                val y = generateFreshVar(goal, a.name)
-                val tpy = goal.getType(a)
-                val subGoal = goal.spawnChild(pre = pre.subst(a, y),
-                  post = post.subst(a, y),
-                  gamma = goal.gamma + (y -> tpy),
-                  programVars = y :: goal.programVars)
-                val kont: StmtProducer = PrependProducer(Load(y, tpy, x, offset)) >> HandleGuard(goal) >> ExtractHelper(goal)
-                ls +=  RuleResult(List(subGoal), kont, this, goal)
-              case Some(h) =>
-                ruleAssert(false, s"Read rule matched unexpected heaplet ${h.pp}")
-            }
-          }
-        if (ls.isEmpty) {
-          apply(goal)
-        }else {
-          ls ++ apply(goal)
-        }
-      }
+      val ans = apply(goal)
+      ans match {
+        case Nil =>
+          examples match {
+            case None => Nil
+            case Some(eg) =>
+              var ls = ListBuffer[RuleResult]()
+              for (e <- eg){
+                val store = e._1
+                val heap_fst = e._2
+                val resolved_heap = resolveHeapLHS(heap_fst, store)
+                val exampleAsSFormula = exampleResolvedHeapToSFormula(resolved_heap)
+                val exampleAsHeaplets = exampleAsSFormula.chunks.toSet
+                val final_heap = SFormula(exampleAsHeaplets.diff(init_pre).toList)
 
+                findHeaplet(isGhostPoints, final_heap) match{
+                  case None => ()
+                  case Some(PointsTo(x@Var(_), offset, a@Var(_))) =>
+                    val y = a
+                    val tpy = goal.getType(a)
+                    val subGoal = goal.spawnChild(pre = pre.subst(a, y),
+                      post = post.subst(a, y),
+                      gamma = goal.gamma + (y -> tpy),
+                      programVars = y :: goal.programVars)
+                    var kont: StmtProducer = PrependProducer(Load(y, tpy, x, offset)) >> HandleGuard(goal) >> ExtractHelper(goal)
+                    // if we haven't read in a variable yet, then we search for it in our user-provided Heap as well
+                    if (!goal.programVars.contains(x)) {
+                      var from : Option[Expr] = None
+                      for ((k,v) <- resolved_heap){
+                        if (x == v) {
+                          from = Some(k)
+                        }
+                      }
+                      from match {
+                        case None => ()
+                        case Some(s) =>
+                          kont  = PrependProducer(SeqComp(Load(x, tpy, s.asInstanceOf[Var], offset), Load(a, tpy, x, offset))) >> HandleGuard(goal) >> ExtractHelper(goal)
+                      }
+                    }
+                    ls +=  RuleResult(List(subGoal), kont, this, goal)
+                  case Some(h) =>
+                    ruleAssert(false, s"Read rule matched unexpected heaplet ${h.pp}")
+                }
+              }
+              if (ls.isEmpty) {
+                Nil
+              } else {
+                ls
+              }
+          }
+        case s => s
+      }
 
     }
     def apply(goal: Goal): Seq[RuleResult] = {

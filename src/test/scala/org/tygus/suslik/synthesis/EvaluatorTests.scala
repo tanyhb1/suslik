@@ -4,19 +4,15 @@ import org.scalatest.{FunSpec, Matchers}
 import org.tygus.suslik.language.Expressions.{IntConst, Subst, Var}
 import org.tygus.suslik.language.LocType
 import org.tygus.suslik.language.Statements._
-import org.tygus.suslik.logic
-import org.tygus.suslik.logic.{Block, PFormula, PointsTo, SFormula}
-import org.tygus.suslik.logic.Specifications.Assertion
 import org.tygus.suslik.synthesis.Evaluator._
-
-import scala.collection.immutable.TreeSet
 
 class EvaluatorTests extends FunSpec with Matchers with SynthesisRunnerUtil {
 
-  override def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit = {
-    super.doRun(testName, desc, in, out, params)
+  override def doRun(testName: String, desc: String, in: String, out: String,
+                     examples:String,params: SynConfig = defaultConfig): Unit = {
+    super.doRun(testName, desc, in, out, examples, params)
     it(desc) {
-      synthesizeFromSpec(testName, in, out, params)
+      synthesizeFromSpec(testName, in, out, examples, params)
     }
   }
 

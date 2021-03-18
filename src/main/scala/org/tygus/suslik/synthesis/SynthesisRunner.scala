@@ -5,7 +5,6 @@ import java.io.File
 import org.tygus.suslik.certification.CertificationTarget
 import org.tygus.suslik.certification.targets._
 import org.tygus.suslik.report.Log
-import org.tygus.suslik.synthesis.Evaluator.Examples
 import org.tygus.suslik.util.SynLogLevels
 
 /**
@@ -45,14 +44,14 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     */
   def main(args: Array[String]): Unit = handleInput(args)
 
-  override def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig): Unit = {
-    super.doRun(testName, desc, in, out, params)
+  override def doRun(testName: String, desc: String, in: String, out: String, examples:String, params: SynConfig): Unit = {
+    super.doRun(testName, desc, in, out,examples, params)
     if (params.printStats) {
       println(desc)
       println()
     }
     try {
-      synthesizeFromSpec(testName, in, out, params)
+      synthesizeFromSpec(testName, in, out,examples, params)
     } catch {
       case SynthesisException(msg) =>
         System.err.println("Synthesis failed:")
@@ -60,15 +59,14 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     }
   }
   override def doRunWithExamples(testName: String, desc: String, in: String, out: String,
-                                 params: SynConfig, examples:Examples
-                                ): Unit = {
-    super.doRunWithExamples(testName, desc, in, out, params, examples)
+                                 examples: String, params: SynConfig): Unit = {
+    super.doRunWithExamples(testName, desc, in, out, examples, params)
     if (params.printStats) {
       println(desc)
       println()
     }
     try {
-      synthesizeFromSpecWithExamples(testName, in, out, params, Some(examples))
+      synthesizeFromSpecWithExamples(testName, in, out, examples, params)
     } catch {
       case SynthesisException(msg) =>
         System.err.println("Synthesis failed:")

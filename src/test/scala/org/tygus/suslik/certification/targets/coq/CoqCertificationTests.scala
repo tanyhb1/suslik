@@ -17,9 +17,10 @@ class CoqCertificationTests extends FunSpec with Matchers with SynthesisRunnerUt
   val certLibPath: File = Files.createDirectory(Paths.get(certRoot, "lib")).toFile
   val certOutPath: File = Files.createDirectory(Paths.get(certRoot, "out")).toFile
 
-  override def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit =
+  override def doRun(testName: String, desc: String, in: String, out: String,
+                     examples:String,params: SynConfig = defaultConfig): Unit =
     it(s"certifies that it $desc") {
-      synthesizeFromSpec(testName, in, out, params.copy(assertSuccess = false, certTarget = Coq, certDest = certOutPath))
+      synthesizeFromSpec(testName, in, out, examples, params.copy(assertSuccess = false, certTarget = Coq, certDest = certOutPath))
       val fname = testName.split('/').last
       val pathToCertificate = Paths.get(certOutPath.getCanonicalPath, s"${fname.replace('-', '_')}.v").toFile.getCanonicalPath
 

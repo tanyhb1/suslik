@@ -128,6 +128,9 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
     case Some(p) ~ s => Assertion(toFormula(desugar(p)), s)
     case None ~ s => Assertion(pTrue, s)
   }
+  def assertionSFormula: Parser[SFormula] = "[" ~> (sigma) <~ "]" ^^ {
+    case  s => s
+  }
 
   def indClause: Parser[InductiveClause] =
     expr ~ ("=>" ~> assertion) ^^ { case p ~ a => InductiveClause(desugar(p), a) }
@@ -154,6 +157,9 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
 
   def goalFunctionSYN: Parser[FunSpec] = assertion ~ typeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ varsDeclaration.? ~ assertion ^^ {
     case pre ~ tpe ~ name ~ formals ~ vars_decl ~ post => FunSpec(name, tpe, formals, pre, post, vars_decl.getOrElse(Nil))
+  }
+  def goalFunctionEG: Parser[(SFormula, SFormula)] = assertionSFormula  ~ assertionSFormula ^^ {
+    case pre ~ post => (pre, post)
   }
 
   def nonGoalFunction: Parser[FunSpec] = typeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ varsDeclaration.? ~ assertion ~ assertion ^^ {
@@ -227,6 +233,10 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
     val funs = fs.take(fs.length - 1)
     Program(ps, funs, GoalContainer(goal, Hole))
   }
+  def programEG: Parser[List[(SFormula,SFormula)]] = phrase(rep( goalFunctionEG)) ^^ { pfs =>
+    val fs = for (x <- pfs) yield x
+    fs
+  }
 
   def parse[T](p: Parser[T])(input: String): ParseResult[T] = p(new lexical.Scanner(input)) match {
     case e: Error => Failure(e.msg, e.next)
@@ -238,6 +248,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   def parseGoalSYN(input: String): ParseResult[Program] = parse(programSYN)(input)
 
   def parseGoalSUS(input: String): ParseResult[Program] = parse(programSUS)(input)
+  def parseGoalEG(input: String): ParseResult[List[(SFormula, SFormula)]] = parse(programEG)(input)
 
   def parseGoal = parseGoalSYN _
 }

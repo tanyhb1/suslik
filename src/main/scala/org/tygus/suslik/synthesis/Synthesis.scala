@@ -57,6 +57,12 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
       synthesize(goal, examples)(stats = stats) match {
         case (Some((body, helpers))) =>
           testPrintln(s"Succeeded leaves (${successLeaves.length}): ${successLeaves.map(n => s"${n.pp()}").mkString(" ")})")
+          examples match {
+            case Some(_) =>
+              log.print(List((s"Examples ${examples.get} were used ", Console.GREEN)))
+            case None =>
+              log.print(List((s"No Examples were used ", Console.GREEN)))
+          }
           val main = Procedure(funGoal, body)
           (main :: helpers, stats)
         case (None) =>
@@ -74,19 +80,24 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
   protected def synthesize(goal: Goal, examples:Option[Examples])
                           (stats: SynStats): (Option[Solution] ) = {
     // initialize goal as an OrNode
-    val example_write2: Examples = List((Map(Var("x") -> HeapConst(100), Var("y") -> HeapConst(200)),
-      Map(100 -> HeapConst(43), 200 -> HeapConst(239)),
-      Map(100 -> HeapConst(43), 200 -> HeapConst(43))))
+//    val example_write2: Examples = List((Map(Var("x") -> HeapConst(100), Var("y") -> HeapConst(200)),
+//      Map(100 -> IntConst(43), 200 -> IntConst(239)),
+//      Map(100 -> IntConst(43), 200 -> IntConst(43))))
 
-    val example_fstelement2a: Examples =
-      List((Map(Var("ret") -> HeapConst(100), Var("x") -> HeapConst(200), Var("v") -> IntConst(1)),
-        Map(100 -> Var("x"), 200 -> Var("v") ),
-        Map(100 -> Var("v"), 200 -> Var("v"))))
-    testPrintln(s"test ${goal.pre.sigma}")
-    val test = exampleResolvedHeapToSFormula(resolveHeapLHS(example_fstelement2a.head._2, example_fstelement2a.head._1))
-    testPrintln(s"test2 ${test}")
+//   generated
+//    val example_write2: Examples =  List((Map(Var("a") -> HeapConst(100), Var("x") -> HeapConst(200),
+//      Var("b") -> HeapConst(300), Var("y") -> HeapConst(400)),Map(200 -> Var("a"), 400 -> Var("b")),Map(400 -> Var("a"), 200 -> Var("a"))))
+//    val example_fstelement2a: Examples =
+//      List((Map(Var("ret") -> HeapConst(100), Var("x") -> HeapConst(200), Var("v") -> IntConst(1)),
+//        Map(100 -> Var("x"), 200 -> Var("v") ),
+//        Map(100 -> Var("v"))))
+//    val example_fstelement2a: Examples = List((Map(Var("x") -> HeapConst(100), Var("ret") -> HeapConst(200), Var("v") -> HeapConst(300)),Map(200 -> Var("x"), 100 -> Var("v")),Map(200 -> Var("v"))))
+//    testPrintln(s"test ${goal.pre.sigma}")
+//    val test = exampleResolvedHeapToSFormula(resolveHeapLHS(example_fstelement2a.head._2, example_fstelement2a.head._1))
+//    testPrintln(s"test2 ${test}")
+//    testPrintln(s"test32 ${examples}")
     init(goal)
-    processWorkList(stats, goal.env.config, Some(example_fstelement2a))
+    processWorkList(stats, goal.env.config, examples)
 
   }
 
@@ -288,7 +299,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           testPrintln(s"with store ${output_store}")
           log.print(List((s"curr heap is ${resolved_testHeap.toSet} while expected heap is ${resolved_egHeap.toSet}", RED)))
           // check that example heap is a subset of the actual output heap
-          if (!(resolved_egHeap.toSet subsetOf resolved_testHeap.toSet) || !(resolved_egHeap == resolved_testHeap)){
+          if (!(resolved_egHeap.toSet subsetOf resolved_testHeap.toSet) && !(resolved_egHeap == resolved_testHeap)){
             log.print(List((s"curr heap is ${resolved_testHeap.toSet} while expected heap is ${resolved_egHeap.toSet}", RED)))
             pass = false
           }

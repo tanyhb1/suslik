@@ -1,7 +1,6 @@
 package org.tygus.suslik.synthesis
 
 import org.scalatest.{FunSpec, Matchers}
-import org.tygus.suslik.synthesis.Evaluator.Examples
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
@@ -9,21 +8,19 @@ import org.tygus.suslik.synthesis.Evaluator.Examples
 
 class HintsTest extends FunSpec with Matchers with SynthesisRunnerUtil {
 
-  override def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit = {
-    super.doRun(testName, desc, in, out, params)
+  override def doRun(testName: String, desc: String, in: String, out: String,
+                     examples:String,params: SynConfig = defaultConfig): Unit = {
+    super.doRun(testName, desc, in, out, examples, params)
     it(desc) {
-      // hints is a pair of lists, with first element being the hints for the precondition, and second element being the hints for the postcondition
-      synthesizeFromSpec(testName, in, out, params)
+      synthesizeFromSpec(testName, in, out, examples, params)
     }
   }
-
   override def doRunWithExamples(testName: String, desc: String, in: String, out: String,
-                                 params: SynConfig = defaultConfig,
-                                examples: Examples): Unit = {
+                                 examples: String, params: SynConfig = defaultConfig): Unit = {
 
-    super.doRun(testName, desc, in, out, params)
+    super.doRun(testName, desc, in, out, examples, params)
     it(desc) {
-      synthesizeFromSpecWithExamples(testName, in, out, params, Some(examples))
+      synthesizeFromSpecWithExamples(testName, in, out, examples, params)
     }
   }
 

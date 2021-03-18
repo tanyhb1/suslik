@@ -4,13 +4,14 @@ import java.io.{File, PrintWriter}
 import java.nio.file.Paths
 
 import org.tygus.suslik.LanguageUtils
+import org.tygus.suslik.language.Expressions.{HeapConst, IntConst, Subst, Var}
 import org.tygus.suslik.language.Statements.Procedure
-import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.logic.Preprocessor._
 import org.tygus.suslik.logic.smt.SMTSolving
+import org.tygus.suslik.logic.{Environment, PointsTo}
 import org.tygus.suslik.parsing.SSLParser
 import org.tygus.suslik.report._
-import org.tygus.suslik.synthesis.Evaluator.Examples
+import org.tygus.suslik.synthesis.Evaluator.{Examples, Heap}
 import org.tygus.suslik.synthesis.SearchTree.AndNode
 import org.tygus.suslik.synthesis.tactics._
 import org.tygus.suslik.util._
@@ -40,21 +41,23 @@ trait SynthesisRunnerUtil {
   // The path starts from the project root.
   val rootDir: String = "./src/test/resources/synthesis".replace("/", File.separator)
 
-  def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig) = {
+  def doRun(testName: String, desc: String, in: String, out: String,
+            examples: String, params: SynConfig = defaultConfig) = {
     LanguageUtils.resetFreshNameGenerator()
   }
 
 
-  def doRunWithHints(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig) = {
+  def doRunWithHints(testName: String, desc: String, in: String, out: String,
+                     examples: String, params: SynConfig = defaultConfig) = {
     LanguageUtils.resetFreshNameGenerator()
   }
 
   def doRunWithExamples(testname: String, desc: String, in: String, out: String,
-                        params: SynConfig = defaultConfig,
-                        examples: Examples) = {
+                        examples: String, params: SynConfig = defaultConfig) = {
     LanguageUtils.resetFreshNameGenerator()
   }
-  def getDescInputOutput(testFilePath: String, initialParams: SynConfig = defaultConfig): (String, String, String, String, SynConfig) = {
+  def getDescInputOutput(testFilePath: String, initialParams: SynConfig = defaultConfig):
+  (String, String, String, String, String, SynConfig) = {
     val file = new File(testFilePath)
     val format = testFilePath match {
       case s if s.endsWith(testExtension) => dotSyn
@@ -86,12 +89,18 @@ trait SynthesisRunnerUtil {
       val desc = s"[$testName] $description"
 
       val (spec, afterSpec) = splitAtSeparator(afterDescr)
+      val (examples, afterExamples) = splitAtSeparator(afterSpec)
+      val (expectedSrc, rawScript) = splitAtSeparator(afterExamples)
       val input = spec.mkString(" ").trim
 
-      val (expectedSrc, rawScript) = splitAtSeparator(afterSpec)
+      log.print(List((s"hello: ${testDescr}", Console.RESET)))(params)
+      log.print(List((s"hello: ${spec}", Console.RESET)))(params)
+      log.print(List((s"hello: ${input}", Console.RESET)))(params)
+      log.print(List((s"hello: ${examples}", Console.RESET)))(params)
+      log.print(List((s"hello: ${expectedSrc}", Console.RESET)))(params)
       val output = expectedSrc.mkString("\n").trim
       val script = rawScript.mkString("\n").trim.split("\n").toList.filter(_.nonEmpty).map(_.toInt)
-      (testName, desc, input, output, params.copy(inputFormat = format, script = script))
+      (testName, desc, input, output, examples.mkString(" ").trim, params.copy(inputFormat = format, script = script))
     }
 
     def parseSus = {
@@ -99,11 +108,11 @@ trait SynthesisRunnerUtil {
       val desc = if(hasDescr) lines.head.trim else ""
 
       val (spec, expectedSrc) = splitAtSeparator(lines, List(noOutputCheck))
-
+      val (examples, afterExamples) = splitAtSeparator(expectedSrc)
       val input = spec.mkString("\n").trim
       val testName = testFilePath
       val output = expectedSrc.mkString("\n").trim
-      (testName, desc, input, output, params.copy(inputFormat = format))
+      (testName, desc, input, output, examples.mkString(" ").trim, params.copy(inputFormat = format))
     }
 
     format match {
@@ -129,20 +138,21 @@ trait SynthesisRunnerUtil {
   }
 
   def synthesizeFromFile(dir: String, testName: String): Unit = {
-    val (_, _, in, out, params) = getDescInputOutput(testName)
-    synthesizeFromSpec(testName, in, out, params)
+    val (_, _, in, out, examples, params) = getDescInputOutput(testName)
+    synthesizeFromSpec(testName, in, out, examples, params)
   }
 
   def synthesizeFromSpec(testName: String, text: String, out: String = noOutputCheck,
-                                     params: SynConfig = defaultConfig): Unit = {
-    synthesizeFromSpecWithExamples(testName, text,out, params, None)
+                         examples: String, params: SynConfig = defaultConfig): Unit = {
+    synthesizeFromSpecWithExamples(testName, text,out, examples, params)
 
   }
-  def synthesizeFromSpecWithExamples(testName: String, text: String, out: String = noOutputCheck, params: SynConfig = defaultConfig,
-                                    examples : Option[Examples])
+  def synthesizeFromSpecWithExamples(testName: String, text: String,out: String = noOutputCheck,
+                                     examples:String, params: SynConfig = defaultConfig)
   {
     import log.out.testPrintln
-    testPrintln(examples.toString)
+    log.print(List((s"hello2: ${examples}", Console.RESET)))(params)
+    log.print(List((s"hello2: ${text}", Console.RESET)))(params)
     val parser = new SSLParser
     val res = params.inputFormat match {
       case `dotSyn` => parser.parseGoalSYN(text)
@@ -151,7 +161,66 @@ trait SynthesisRunnerUtil {
     if (!res.successful) {
       throw SynthesisException(s"Failed to parse the input:\n$res")
     }
-
+    val parsed_eg = parser.parseGoalEG(examples)
+    var eg: Option[Examples]= None
+    if (parsed_eg.successful && !parsed_eg.get.isEmpty) {
+      val (pre, post) = parsed_eg.get(0)
+      var store :Subst= Map()
+      var init_heap : Heap = Map()
+      var fin_heap : Heap = Map()
+      var curr = 100
+      log.print(List((s"hello2: ${pre.chunks}", Console.RESET)))(params)
+      //initialize store
+      for (x <- pre.chunks) {
+        x match {
+          case PointsTo(loc, offset, value) =>
+            store.get(value.asInstanceOf[Var]) match {
+              case None =>
+                store += (value.asInstanceOf[Var] -> HeapConst(curr))
+                curr += 100
+              case Some(e) =>
+                ()
+            }
+            store.get(loc.asInstanceOf[Var]) match {
+              case None =>
+                store += (loc.asInstanceOf[Var] -> HeapConst(curr))
+                curr += 100
+              case Some(e) =>
+                ()
+            }
+          case _ => ()
+        }
+      }
+      //set up init heap and fin heap
+      for (x <- pre.chunks){
+        x match {
+          case PointsTo(loc, offset, value) =>
+            val loc_var = loc.asInstanceOf[Var]
+            val val_var = value.asInstanceOf[Var]
+            store(loc_var) match {
+              case HeapConst(v) => init_heap += (v.asInstanceOf[Int] -> val_var)
+              case IntConst(v) => init_heap += (v.asInstanceOf[Int] -> val_var)
+              case _ => ()
+            }
+        }
+      }
+      for (x <- post.chunks){
+        x match {
+          case PointsTo(loc, offset, value) =>
+            val loc_var = loc.asInstanceOf[Var]
+            val val_var = value.asInstanceOf[Var]
+            store(loc_var) match {
+              case HeapConst(v) => fin_heap += (v.asInstanceOf[Int] -> val_var)
+              case IntConst(v) => fin_heap += (v.asInstanceOf[Int] -> val_var)
+              case _ => ()
+            }
+          case _ => ()
+        }
+      }
+      eg = Some(List((store, init_heap, fin_heap)))
+    }
+    log.print(List((s"hello2: ${res}", Console.RESET)))(params)
+    log.print(List((s"hello2: ${eg}", Console.RESET)))(params)
     val prog = res.get
     val (specs, predEnv, funcEnv, body) = preprocessProgram(prog, params)
 
@@ -164,7 +233,7 @@ trait SynthesisRunnerUtil {
     val synthesizer = createSynthesizer(env)
 
     env.stats.start()
-    val sresult = synthesizer.synthesizeProc(spec, env, body, examples)
+    val sresult = synthesizer.synthesizeProc(spec, env, body, eg)
     val duration = env.stats.duration
 
     SynStatUtil.log(testName, duration, params, spec, sresult._1, sresult._2)
@@ -275,9 +344,9 @@ trait SynthesisRunnerUtil {
         && (f.getName.endsWith(s".$testExtension") ||
             f.getName.endsWith(s".$sketchExtension"))).toList
       for (f <- tests) {
-        val (testName, desc, in, out, params) = getDescInputOutput(f.getAbsolutePath)
+        val (testName, desc, in, out, examples, params) = getDescInputOutput(f.getAbsolutePath)
         val fullInput = List(defs, in).mkString("\n")
-        doRun(testName, desc, fullInput, out, params)
+        doRun(testName, desc, fullInput, out, examples, params)
       }
     }
   }
@@ -304,9 +373,9 @@ trait SynthesisRunnerUtil {
             f.getName.endsWith(s".$sketchExtension"))).toList
       tests.find(f => f.getName == fname) match {
         case Some(f) =>
-          val (testName, desc, in, out, allParams) = getDescInputOutput(f.getAbsolutePath, params)
+          val (testName, desc, in, out, examples, allParams) = getDescInputOutput(f.getAbsolutePath, params)
           val fullInput = List(defs, in).mkString("\n")
-          doRun(testName, desc, fullInput, out, allParams)
+          doRun(testName, desc, fullInput, out, examples, allParams)
         case None =>
           System.err.println(s"No file with the name $fname found in the directory $dir.")
       }
@@ -334,9 +403,9 @@ trait SynthesisRunnerUtil {
         f.getName.endsWith(s".$sketchExtension"))).toList
       tests.find(f => f.getName == fname) match {
         case Some(f) =>
-          val (testName, desc, in, out, allParams) = getDescInputOutput(f.getAbsolutePath, params)
+          val (testName, desc, in, out, examples, allParams) = getDescInputOutput(f.getAbsolutePath, params)
           val fullInput = List(defs, in).mkString("\n")
-          doRunWithExamples(testName, desc, fullInput, out, allParams, examples)
+          doRunWithExamples(testName, desc, fullInput, out, examples, allParams)
         case None =>
           System.err.println(s"No file with the name $fname found in the directory $dir.")
       }
@@ -364,9 +433,9 @@ trait SynthesisRunnerUtil {
         f.getName.endsWith(s".$sketchExtension"))).toList
       tests.find(f => f.getName == fname) match {
         case Some(f) =>
-          val (testName, desc, in, out, allParams) = getDescInputOutput(f.getAbsolutePath, params)
+          val (testName, desc, in, out, examples, allParams) = getDescInputOutput(f.getAbsolutePath, params)
           val fullInput = List(defs, in).mkString("\n")
-          doRunWithHints(testName, desc, fullInput, out, allParams)
+          doRunWithHints(testName, desc, fullInput, out, examples, allParams)
         case None =>
           System.err.println(s"No file with the name $fname found in the directory $dir.")
       }
