@@ -174,12 +174,16 @@ trait SynthesisRunnerUtil {
       for (x <- pre.chunks) {
         x match {
           case PointsTo(loc, offset, value) =>
-            store.get(value.asInstanceOf[Var]) match {
-              case None =>
-                store += (value.asInstanceOf[Var] -> HeapConst(curr))
-                curr += 100
-              case Some(e) =>
-                ()
+            value match {
+              case key: Var =>
+                store.get(key) match {
+                  case None =>
+                    store += (key -> HeapConst(curr))
+                    curr += 100
+                  case Some(e) =>
+                    ()
+                }
+              case _ => ()
             }
             store.get(loc.asInstanceOf[Var]) match {
               case None =>
@@ -196,10 +200,19 @@ trait SynthesisRunnerUtil {
         x match {
           case PointsTo(loc, offset, value) =>
             val loc_var = loc.asInstanceOf[Var]
-            val val_var = value.asInstanceOf[Var]
-            store(loc_var) match {
-              case HeapConst(v) => init_heap += (v.asInstanceOf[Int] -> val_var)
-              case IntConst(v) => init_heap += (v.asInstanceOf[Int] -> val_var)
+            value match {
+              case val_var: Var =>
+                store(loc_var) match {
+                  case HeapConst(v) => init_heap += (v.asInstanceOf[Int] -> val_var)
+                  case IntConst(v) => init_heap += (v.asInstanceOf[Int] -> val_var)
+                  case _ => ()
+                }
+              case val_val: IntConst =>
+                store(loc_var) match {
+                  case HeapConst(v) => init_heap += (v.asInstanceOf[Int] -> val_val)
+                  case IntConst(v) => init_heap += (v.asInstanceOf[Int] -> val_val)
+                  case _ => ()
+                }
               case _ => ()
             }
         }
@@ -208,11 +221,20 @@ trait SynthesisRunnerUtil {
         x match {
           case PointsTo(loc, offset, value) =>
             val loc_var = loc.asInstanceOf[Var]
-            val val_var = value.asInstanceOf[Var]
-            store(loc_var) match {
-              case HeapConst(v) => fin_heap += (v.asInstanceOf[Int] -> val_var)
-              case IntConst(v) => fin_heap += (v.asInstanceOf[Int] -> val_var)
-              case _ => ()
+            value match {
+              case val_var: Var =>
+                store(loc_var) match {
+                  case HeapConst(v) => fin_heap += (v.asInstanceOf[Int] -> val_var)
+                  case IntConst(v) => fin_heap += (v.asInstanceOf[Int] -> val_var)
+                  case _ => ()
+                }
+              case val_val : IntConst =>
+                store(loc_var) match {
+                  case HeapConst(v) => fin_heap += (v.asInstanceOf[Int] -> val_val)
+                  case IntConst(v) => fin_heap += (v.asInstanceOf[Int] -> val_val)
+                  case _ => ()
+                }
+              case _ =>
             }
           case _ => ()
         }

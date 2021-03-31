@@ -1,10 +1,11 @@
 should be able to synthesize a two-pointer arbitrary constant-assigning procedure with hints to guide the choice of constant
 ###
-{true; x :-> a ** y :-> b} void bar(loc x, loc y) {true ; y :-> z ** x :-> z}
+{true; x :-> b ** y :-> b} void bar(loc x, loc y) {true ; y :-> z ** x :-> z}
 ###
-[x :-> a ** y :-> b ] [y :-> a ** x :-> a]
+asdf
 ###
 void bar (loc x, loc y) {
   *x = 43;
   *y = 239;
 }
+[x :-> a ** y :-> b ** z :-> 42] [y :-> 42 ** x :-> 42]
