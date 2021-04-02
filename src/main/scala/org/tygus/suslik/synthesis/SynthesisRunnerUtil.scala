@@ -189,8 +189,12 @@ trait SynthesisRunnerUtil {
               case None =>
                 store += (loc.asInstanceOf[Var] -> HeapConst(curr))
                 curr += 100
-              case Some(e) =>
-                ()
+              case Some(HeapConst(e)) =>
+                loc match {
+                  case Var(nm) =>
+                    store += (Var(nm + "+" + offset.toString) -> HeapConst(e+offset))
+                }
+              case Some(_) => ()
             }
           case _ => ()
         }
@@ -199,12 +203,20 @@ trait SynthesisRunnerUtil {
       for (x <- pre.chunks){
         x match {
           case PointsTo(loc, offset, value) =>
-            val loc_var = loc.asInstanceOf[Var]
+            var loc_var = loc match {
+              case Var(nm) =>
+                if (offset == 0){
+                  Var(nm)
+                } else {
+                  Var(nm + "+" +offset.toString)
+                }
+            }
+
             value match {
               case val_var: Var =>
                 store(loc_var) match {
                   case HeapConst(v) => init_heap += (v.asInstanceOf[Int] -> val_var)
-                  case IntConst(v) => init_heap += (v.asInstanceOf[Int] -> val_var)
+                  case IntConst(v) => init_heap += (v.asInstanceOf[Int]-> val_var)
                   case _ => ()
                 }
               case val_val: IntConst =>
@@ -230,7 +242,7 @@ trait SynthesisRunnerUtil {
                 }
               case val_val : IntConst =>
                 store(loc_var) match {
-                  case HeapConst(v) => fin_heap += (v.asInstanceOf[Int] -> val_val)
+                  case HeapConst(v) => fin_heap += (v.asInstanceOf[Int]  -> val_val)
                   case IntConst(v) => fin_heap += (v.asInstanceOf[Int] -> val_val)
                   case _ => ()
                 }

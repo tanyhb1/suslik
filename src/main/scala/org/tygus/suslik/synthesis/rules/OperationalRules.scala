@@ -113,6 +113,9 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
                       post = post.subst(a, y),
                       gamma = goal.gamma + (y -> tpy),
                       programVars = y :: goal.programVars)
+                    val x2 = x match {
+                    case Var(s) => Var(s.charAt(0).toString)
+                  }
                     var kont: StmtProducer = PrependProducer(Load(y, tpy, x, offset)) >> HandleGuard(goal) >> ExtractHelper(goal)
                     // if we haven't read in a variable yet, then we search for it in our user-provided Heap as well
                     if (!goal.programVars.contains(x)) {
@@ -124,8 +127,21 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
                       }
                       from match {
                         case None => ()
-                        case Some(s) =>
-                          kont  = PrependProducer(SeqComp(Load(x, tpy, s.asInstanceOf[Var], offset), Load(a, tpy, x, offset))) >> HandleGuard(goal) >> ExtractHelper(goal)
+                        case Some(Var(s)) =>
+                          kont  = PrependProducer(SeqComp(Load(x, tpy, Var(s), offset), Load(y, tpy, x, offset))) >> HandleGuard(goal) >> ExtractHelper(goal)
+                      }
+                    }
+                    if (!goal.programVars.contains(x2)) {
+                      var from : Option[Expr] = None
+                      for ((k,v) <- resolved_heap){
+                        if (x2 == v) {
+                          from = Some(k)
+                        }
+                      }
+                      from match {
+                        case None => ()
+                        case Some(Var(s)) =>
+                          kont  = PrependProducer(SeqComp(Load(x2, tpy, Var(s), offset), Load(y, tpy, x, offset))) >> HandleGuard(goal) >> ExtractHelper(goal)
                       }
                     }
                     ls +=  RuleResult(List(subGoal), kont, this, goal)

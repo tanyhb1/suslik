@@ -29,13 +29,3 @@ void fstElement (loc ret, loc y) {
   *ret = h; // return value pointed to by hd (which is second element)
 }
 
-short circuit by checking example and specification
-
-x != 0 because x is x :-> but lseg(x) implies x == 0
-
-focus on write2 for the motivatoin and non-determinism in the rules because that would be a good starting point for people unfamiliar (write2)
-if-else branch of the unfolding lseg would imply that x == 0 for if branch but in the pointsto thing we know that x!= 0 so we can basically shortcircuit
- and not explore the branch.
-
-
-change pictures to legit latex

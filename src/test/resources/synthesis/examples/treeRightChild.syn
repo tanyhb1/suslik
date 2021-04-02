@@ -1,0 +1,16 @@
+should be able to synthesize a tree copy (with elements)
+
+#####
+
+{true ; ret :-> x ** treeS(x, S1)}
+void treeRightChild(loc ret)
+{true ; ret :-> r ** treeS(x,S)}
+
+#####
+[ret :-> x ** (x+2) :-> r] [ret :-> r ]
+#####
+void treeRightChild (loc ret) {
+  let x = *ret;
+  let r = *(x + 2);
+  *ret = r;
+}
