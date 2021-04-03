@@ -41,13 +41,13 @@ To compile the executables, run the following in your command line:
 sbt assembly
 ```
 
-to produce an executable `JAR`-file that you can run as explained below.
+to produce an executable `JAR`-file that you can run as explained below (remember to checkout to the `suslix` branch!).
 
 The following case studies that were explored in the Capstone report can be found in the folder
 
 `$PROJECT_ROOT/src/test/resources/synthesis/exampledriven/`
 
-The definitions of inductive predicates are given in the single `.def`-file, in thie case called `mydefs.def`, whose contents are as follows:
+The definitions of inductive predicates are given in the single `.def`-file, in this case called `mydefs.def`, whose contents are as follows:
 
 ```
 predicate lseg(loc x, loc y, set s) {

@@ -92,12 +92,6 @@ trait SynthesisRunnerUtil {
       val (examples, afterExamples) = splitAtSeparator(afterSpec)
       val (expectedSrc, rawScript) = splitAtSeparator(afterExamples)
       val input = spec.mkString(" ").trim
-
-      log.print(List((s"hello: ${testDescr}", Console.RESET)))(params)
-      log.print(List((s"hello: ${spec}", Console.RESET)))(params)
-      log.print(List((s"hello: ${input}", Console.RESET)))(params)
-      log.print(List((s"hello: ${examples}", Console.RESET)))(params)
-      log.print(List((s"hello: ${expectedSrc}", Console.RESET)))(params)
       val output = expectedSrc.mkString("\n").trim
       val script = rawScript.mkString("\n").trim.split("\n").toList.filter(_.nonEmpty).map(_.toInt)
       (testName, desc, input, output, examples.mkString(" ").trim, params.copy(inputFormat = format, script = script))
@@ -151,8 +145,6 @@ trait SynthesisRunnerUtil {
                                      examples:String, params: SynConfig = defaultConfig)
   {
     import log.out.testPrintln
-    log.print(List((s"hello2: ${examples}", Console.RESET)))(params)
-    log.print(List((s"hello2: ${text}", Console.RESET)))(params)
     val parser = new SSLParser
     val res = params.inputFormat match {
       case `dotSyn` => parser.parseGoalSYN(text)
@@ -169,7 +161,6 @@ trait SynthesisRunnerUtil {
       var init_heap : Heap = Map()
       var fin_heap : Heap = Map()
       var curr = 100
-      log.print(List((s"hello2: ${pre.chunks}", Console.RESET)))(params)
       //initialize store
       for (x <- pre.chunks) {
         x match {
@@ -253,8 +244,6 @@ trait SynthesisRunnerUtil {
       }
       eg = Some(List((store, init_heap, fin_heap)))
     }
-    log.print(List((s"hello2: ${res}", Console.RESET)))(params)
-    log.print(List((s"hello2: ${eg}", Console.RESET)))(params)
     val prog = res.get
     val (specs, predEnv, funcEnv, body) = preprocessProgram(prog, params)
 
