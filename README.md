@@ -45,7 +45,7 @@ to produce an executable `JAR`-file that you can run as explained below.
 
 The following case studies that were explored in the Capstone report can be found in the folder
 
-`$PROJECT_ROOT/src/test/resources/synthesis/exampledriven`
+`$PROJECT_ROOT/src/test/resources/synthesis/exampledriven/`
 
 The definitions of inductive predicates are given in the single `.def`-file, in thie case called `mydefs.def`, whose contents are as follows:
 
@@ -60,8 +60,6 @@ predicate treeS(loc x, set s) {
 |  x == 0        => {s =i {}; emp}
 |  not (x == 0)  => {s =i {v} ++ s1 ++ s2 ; [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** treeS(l, s1) ** treeS(r, s2)}
 }
-
-
 ```
 
 The remaining files (`*.syn`) are the actual case studies, which will be explained in their corresponding sections below. They are structured in the following format:
@@ -72,15 +70,23 @@ The remaining files (`*.syn`) are the actual case studies, which will be explain
 #####
 <Hoare-style specification of the synthesized procedure in SL>
 #####
-<Input-output examples specified in the style explained in the Capstone report>
+<Input-output example specified in the style explained in the Capstone report>
 #####
 <Optional expected result>
 ```
 
+The <input-output example> takes the form of
+
+```
+[input component] [output component]
+```
+as explained in the Capstone report.
+
+
 To run the synthesizer on the case study, execute the following script:
 
 ```
-suslik fileName [options]
+./suslik fileName [options]
 ```
 
 where the necessary arguments and options are
