@@ -1,5 +1,4 @@
-should be able to synthesize a tree copy (with elements)
-
+should be able to synthesize a program that gets the right child of a tree using incomplete specifications, with the help of examples
 #####
 
 {true ; ret :-> x ** treeS(x, S1)}
@@ -9,8 +8,10 @@ void treeRightChild(loc ret)
 #####
 [ret :-> x ** (x+2) :-> r] [ret :-> r ]
 #####
+Output program:
+
 void treeRightChild (loc ret) {
   let x = *ret;
-  let r = *(x + 2);
+  let r = *x+2;
   *ret = r;
 }

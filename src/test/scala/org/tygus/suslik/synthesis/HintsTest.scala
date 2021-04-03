@@ -35,7 +35,7 @@ class HintsTest extends FunSpec with Matchers with SynthesisRunnerUtil {
 //    runSingleTestFromDir("hints", "lastelement2.syn")
 //  }
 //  describe("First element of Linked Lists parameterized by sets without complete input-output examples"){
-//    runSingleTestFromDir("hints", "fstelement2.syn")
+//    runSingleTestFromDir("hints", "fstElement.syn")
 //  }
 //
 //  describe("Last element of Linked Lists with complete input-output examples"){
@@ -69,18 +69,18 @@ class HintsTest extends FunSpec with Matchers with SynthesisRunnerUtil {
 //    val snd_example = (Map("x" -> 100), ("x", "y", List(4,6,12,2,10,5)), 4)
 //    val thd_example = (Map("x" -> 100), ("x", "y", List(10,9,8,7,6,5,4,3)), 10)
 //    val examples2 = List(fst_example, snd_example, thd_example)
-//    runSingleTestFromDirWithExamples("hints", "fstelement2.syn", examples2)
+//    runSingleTestFromDirWithExamples("hints", "fstElement.syn", examples2)
 //  }
 //  describe("fst ele"){
 //
-//    runSingleTestFromDirWithExamples("hints", "fstelement2.syn", examples2)
+//    runSingleTestFromDirWithExamples("hints", "fstElement.syn", examples2)
 //  }
 //  describe("write 2"){
 //    // Store; Input Heap; Output Heap
 //    val fst_example: (Subst, Heap, Heap) = (Map(Var("x") -> IntConst(100), Var("y") -> IntConst(200)),
 //      Map(100 -> IntConst(43), 200 -> IntConst(239)),
 //      Map(100 -> IntConst(43), 200 -> IntConst(43)))
-//    runSingleTestFromDirWithExamples("hints", "write2.syn", List(fst_example))
+//    runSingleTestFromDirWithExamples("hints", "pick.syn", List(fst_example))
 //  }
 
 }

@@ -1,0 +1,22 @@
+should be able to synthesize a program that gets the first element of a linked list with incomplete SL specifications,
+with the help of examples.
+#######
+
+{true ; ret :-> x ** lseg(x, 0, S1)}
+void fstElement(loc ret)
+{true ;  ret :-> v ** lseg(x, 0, S)}
+
+######
+
+[ret :-> x ** x :-> v] [ret :-> v  ]
+
+#########
+output program:
+
+{ret :-> x ** lseg(x, 0, S1)<_alpha_525>}
+{ret :-> v ** lseg(x, 0, S)<_alpha_526>}
+void fstElement (loc ret) {
+  let x = *ret;
+  let v = *x;
+  *ret = v;
+}
