@@ -75,7 +75,7 @@ The remaining files (`*.syn`) are the actual case studies, which will be explain
 <Optional expected result>
 ```
 
-The <input-output example> takes the form of
+The input-output example takes the form of
 
 ```
 [input component] [output component]
